@@ -1,0 +1,20 @@
+=== Z-API - BOT CLÍNICA ===
+
+ID da instância:
+3F424535214202979B1E7A94F00847F6
+
+Token da instância:
+EA8E2F27C3F469BA1874CEED
+
+URL do servidor (Railway):
+https://bot-clinica-production.up.railway.app
+
+Webhook:
+https://bot-clinica-production.up.railway.app/webhook
+
+E-mail Z-API:
+ygshubo@gmail.com
+
+
+chave API - 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
+
