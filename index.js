@@ -48,11 +48,14 @@ async function perguntarIA(telefone, mensagem) {
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': CLAUDE_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 1024, system: system, messages: getHistorico(telefone) })
+    body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1024, system: system, messages: getHistorico(telefone) })
   })
 
   const data = await response.json()
-  if (!data.content || !data.content[0]) return 'Erro tecnico. Tente novamente.'
+  if (!data.content || !data.content[0]) {
+    console.error('Resposta inesperada da API:', JSON.stringify(data))
+    return 'Erro tecnico. Tente novamente em instantes.'
+  }
 
   const texto = data.content[0].text
   const match = texto.match(/DADOS:(.*)/i)
@@ -83,25 +86,36 @@ async function perguntarIA(telefone, mensagem) {
 }
 
 async function enviar(telefone, mensagem) {
-  await fetch('https://api.z-api.io/instances/' + INSTANCE_ID + '/token/' + INSTANCE_TOKEN + '/send-text', {
+  const url = 'https://api.z-api.io/instances/' + INSTANCE_ID + '/token/' + INSTANCE_TOKEN + '/send-text'
+  const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ phone: telefone, message: mensagem })
   })
+  if (!resp.ok) {
+    console.error('Erro ao enviar mensagem Z-API:', resp.status, await resp.text())
+  }
 }
 
 app.post('/webhook', async function(req, res) {
   try {
     const body = req.body
-    if (!body.text || !body.phone) return res.status(200).send('ok')
+
+    // Ignora mensagens enviadas pelo próprio bot
+    if (body.fromMe) return res.status(200).send('ok')
+
+    // Ignora eventos que não são mensagens de texto
+    const mensagem = body.text?.message
     const telefone = body.phone
-    const mensagem = body.text.message
+
+    if (!mensagem || !telefone) return res.status(200).send('ok')
+
     console.log('De ' + telefone + ': ' + mensagem)
     const resposta = await perguntarIA(telefone, mensagem)
     await enviar(telefone, resposta)
     res.status(200).send('ok')
   } catch (err) {
-    console.error('Erro:', err)
+    console.error('Erro no webhook:', err)
     res.status(200).send('ok')
   }
 })
@@ -110,5 +124,10 @@ app.get('/pacientes', function(req, res) {
   res.json(db.prepare('SELECT * FROM pacientes ORDER BY atualizado DESC').all())
 })
 
-const PORTA = process.env.PORT || 3000
+app.get('/health', function(req, res) {
+  res.json({ status: 'ok', uptime: process.uptime() })
+})
+
+// Usa a variável PORT do Railway (obrigatório), fallback 8080
+const PORTA = process.env.PORT || 8080
 app.listen(PORTA, function() { console.log('Rodando na porta ' + PORTA) })
