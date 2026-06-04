@@ -5,6 +5,7 @@ app.use(express.json())
 
 const INSTANCE_ID = process.env.INSTANCE_ID || '3F424535214202979B1E7A94F00847F6'
 const INSTANCE_TOKEN = process.env.INSTANCE_TOKEN || 'EA8E2F27C3F469BA1874CEED'
+const CLIENT_TOKEN = process.env.CLIENT_TOKEN || 'F778ca59b075541ad8cfd7e6cb843fc52S'
 const CLAUDE_KEY = process.env.CLAUDE_KEY
 
 const db = new Database('clinica.db')
