@@ -9,19 +9,22 @@ const CLIENT_TOKEN = process.env.CLIENT_TOKEN || 'F778ca59b075541ad8cfd7e6cb843f
 const CLAUDE_KEY = process.env.CLAUDE_KEY
 
 const db = new Database('clinica.db')
+
+// Tabela de pacientes
 db.exec("CREATE TABLE IF NOT EXISTS pacientes (telefone TEXT PRIMARY KEY, nome TEXT, nascimento TEXT, sexo TEXT, endereco TEXT, plano TEXT, motivo TEXT, criado TEXT, atualizado TEXT)")
 
-const historicos = {}
+// Tabela de histórico persistente
+db.exec("CREATE TABLE IF NOT EXISTS historico (id INTEGER PRIMARY KEY AUTOINCREMENT, telefone TEXT, role TEXT, content TEXT, criado TEXT)")
 
 function getHistorico(telefone) {
-  if (!historicos[telefone]) historicos[telefone] = []
-  return historicos[telefone]
+  const rows = db.prepare("SELECT role, content FROM historico WHERE telefone = ? ORDER BY id ASC").all(telefone)
+  return rows.map(r => ({ role: r.role, content: r.content }))
 }
 
 function addMsg(telefone, role, content) {
-  if (!historicos[telefone]) historicos[telefone] = []
-  historicos[telefone].push({ role, content })
-  if (historicos[telefone].length > 20) historicos[telefone] = historicos[telefone].slice(-20)
+  db.prepare("INSERT INTO historico (telefone, role, content, criado) VALUES (?, ?, ?, datetime('now'))").run(telefone, role, content)
+  // Mantém apenas as últimas 20 mensagens por telefone
+  db.prepare("DELETE FROM historico WHERE telefone = ? AND id NOT IN (SELECT id FROM historico WHERE telefone = ? ORDER BY id DESC LIMIT 20)").run(telefone, telefone)
 }
 
 function getPaciente(telefone) {
@@ -40,24 +43,50 @@ function salvar(telefone, d) {
 async function perguntarIA(telefone, mensagem) {
   const p = getPaciente(telefone)
   addMsg(telefone, 'user', mensagem)
-  const cadastro = p
-    ? "Nome:" + (p.nome||"?") + " Nasc:" + (p.nascimento||"?") + " Sexo:" + (p.sexo||"?") + " End:" + (p.endereco||"?") + " Plano:" + (p.plano||"?") + " Motivo:" + (p.motivo||"?")
-    : "Nenhum dado ainda."
 
-  const system = `Você é Ana, recepcionista da Clínica Geral. Você é calorosa, atenciosa e conversa de forma natural como uma pessoa real — sem soar robótica ou seguir um roteiro rígido.
+  const dadosColetados = p ? [
+    p.nome       ? `Nome: ${p.nome}`            : null,
+    p.nascimento ? `Nascimento: ${p.nascimento}` : null,
+    p.sexo       ? `Sexo: ${p.sexo}`            : null,
+    p.endereco   ? `Endereço: ${p.endereco}`    : null,
+    p.plano      ? `Plano: ${p.plano}`          : null,
+    p.motivo     ? `Motivo: ${p.motivo}`        : null,
+  ].filter(Boolean) : []
 
-Cadastro atual do paciente: ${cadastro}
+  const dadosFaltando = p ? [
+    !p.nome       ? 'nome completo'      : null,
+    !p.nascimento ? 'data de nascimento' : null,
+    !p.sexo       ? 'sexo'              : null,
+    !p.endereco   ? 'endereço'          : null,
+    !p.plano      ? 'plano de saúde'    : null,
+    !p.motivo     ? 'motivo da consulta' : null,
+  ].filter(Boolean) : ['nome completo','data de nascimento','sexo','endereço','plano de saúde','motivo da consulta']
 
-Seu objetivo é coletar os dados marcados com "?" de forma leve e conversacional, como se fosse um bate-papo. Siga estas orientações:
+  const resumoCadastro = dadosColetados.length > 0
+    ? `Já coletados: ${dadosColetados.join(', ')}.\nAinda faltam: ${dadosFaltando.join(', ')}.`
+    : `Nenhum dado coletado ainda.`
 
-- Responda primeiro ao que o paciente disse, depois faça UMA pergunta por vez de forma natural
-- Use o nome do paciente com moderação — apenas ocasionalmente, não em toda mensagem
-- Nunca repita perguntas já respondidas
-- Se o paciente der uma informação sem você perguntar, aceite naturalmente e continue
-- Varie as formas de perguntar — não use sempre a mesma estrutura
-- Demonstre empatia quando o paciente mencionar sintomas ou dificuldades
-- Quando todos os dados estiverem completos, confirme o agendamento de forma calorosa e natural
-- Ao coletar um dado, adicione ao final em nova linha: DADOS: NOME:valor|NASC:valor|SEXO:valor|END:valor|PLANO:valor|MOTIVO:valor (só os coletados nessa mensagem)
+  const system = `Você é Ana, recepcionista da Clínica Geral. Você é calorosa, empática e conversa de forma completamente natural — como uma atendente humana real, não um robô.
+
+SITUAÇÃO DO CADASTRO:
+${resumoCadastro}
+
+INSTRUÇÕES DE COMPORTAMENTO:
+- Converse naturalmente, respondendo primeiro ao que o paciente disse
+- Colete os dados que FALTAM, um por vez, de forma leve e espontânea
+- NUNCA peça um dado que já foi coletado
+- Use o nome do paciente com moderação — só ocasionalmente, não em toda frase
+- Varie bastante as formas de perguntar — nunca repita a mesma estrutura
+- Demonstre empatia quando o paciente mencionar dor ou dificuldades
+- Se o paciente já informou algo sem você perguntar, aceite naturalmente
+- Se o paciente fizer uma pergunta fora do escopo (orçamento, preço, agenda), responda com simpatia que essa informação é passada pela equipe, e volte gentilmente ao cadastro
+- Quando TODOS os dados estiverem coletados, confirme de forma calorosa e diga que entrarão em contato para confirmar o horário
+- NUNCA mostre o bloco DADOS na mensagem para o paciente — ele é só para sistema interno
+
+FORMATO INTERNO (invisível para o paciente):
+Sempre que coletar um ou mais dados novos, adicione numa linha separada ao final da sua resposta:
+DADOS: NOME:valor|NASC:valor|SEXO:valor|END:valor|PLANO:valor|MOTIVO:valor
+(inclua apenas os dados coletados NESSA mensagem, os demais deixe em branco)
 
 Responda sempre em português brasileiro.`
 
@@ -70,10 +99,12 @@ Responda sempre em português brasileiro.`
   const data = await response.json()
   if (!data.content || !data.content[0]) {
     console.error('Resposta inesperada da API:', JSON.stringify(data))
-    return 'Erro tecnico. Tente novamente em instantes.'
+    return 'Desculpe, tive um probleminha aqui. Pode repetir?'
   }
 
   const texto = data.content[0].text
+
+  // Extrai e salva os dados
   const match = texto.match(/DADOS:(.*)/i)
   if (match) {
     const d = {}
@@ -96,7 +127,8 @@ Responda sempre em português brasileiro.`
     }
   }
 
-  const limpo = texto.replace(/DADOS:.*/i, '').trim()
+  // Remove o bloco DADOS antes de enviar ao paciente
+  const limpo = texto.replace(/\n?DADOS:.*$/im, '').trim()
   addMsg(telefone, 'assistant', limpo)
   return limpo
 }
@@ -116,16 +148,10 @@ async function enviar(telefone, mensagem) {
 app.post('/webhook', async function(req, res) {
   try {
     const body = req.body
-
-    // Ignora mensagens enviadas pelo próprio bot
     if (body.fromMe) return res.status(200).send('ok')
-
-    // Ignora eventos que não são mensagens de texto
     const mensagem = body.text?.message
     const telefone = body.phone
-
     if (!mensagem || !telefone) return res.status(200).send('ok')
-
     console.log('De ' + telefone + ': ' + mensagem)
     const resposta = await perguntarIA(telefone, mensagem)
     await enviar(telefone, resposta)
@@ -144,6 +170,5 @@ app.get('/health', function(req, res) {
   res.json({ status: 'ok', uptime: process.uptime() })
 })
 
-// Usa a variável PORT do Railway (obrigatório), fallback 8080
 const PORTA = process.env.PORT || 8080
 app.listen(PORTA, function() { console.log('Rodando na porta ' + PORTA) })
