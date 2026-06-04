@@ -1,4 +1,5 @@
 const express = require('express')
+const Database = require('better-sqlite3')
 const app = express()
 app.use(express.json())
 
@@ -6,54 +7,61 @@ const INSTANCE_ID = process.env.INSTANCE_ID || '3F424535214202979B1E7A94F00847F6
 const INSTANCE_TOKEN = process.env.INSTANCE_TOKEN || 'EA8E2F27C3F469BA1874CEED'
 const CLAUDE_KEY = process.env.CLAUDE_KEY
 
-async function perguntarIA(mensagem) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': CLAUDE_KEY,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 1024,
-      system: 'Você é um atendente virtual simpático de uma clínica médica. Seu objetivo é agendar consultas coletando: nome completo, data de nascimento, sexo, telefone, endereço, plano de saúde e motivo da consulta. Colete um dado por vez, de forma natural e amigável. Responda sempre em português brasileiro.',
-      messages: [{ role: 'user', content: mensagem }]
-    })
-  })
-  const data = await response.json()
-  console.log('Resposta Claude:', JSON.stringify(data))
-  if (data.content && data.content[0] && data.content[0].text) {
-    return data.content[0].text
-  }
-  return 'Desculpe, tive um problema técnico. Tente novamente em instantes.'
-}
-async function enviarMensagem(telefone, mensagem) {
-  await fetch(`https://api.z-api.io/instances/${INSTANCE_ID}/token/${INSTANCE_TOKEN}/send-text`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone: telefone, message: mensagem })
-  })
+const db = new Database('clinica.db')
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS pacientes (
+    telefone TEXT PRIMARY KEY,
+    nome_completo TEXT,
+    data_nascimento TEXT,
+    sexo TEXT,
+    endereco TEXT,
+    plano_saude TEXT,
+    motivo_consulta TEXT,
+    data_cadastro TEXT DEFAULT (datetime('now')),
+    ultima_atualizacao TEXT DEFAULT (datetime('now'))
+  )
+`)
+
+const historicos = {}
+
+function getHistorico(telefone) {
+  if (!historicos[telefone]) historicos[telefone] = []
+  return historicos[telefone]
 }
 
-app.post('/webhook', async (req, res) => {
-  try {
-    const body = req.body
-    if (!body.text || !body.phone) return res.status(200).send('ok')
-    const telefone = body.phone
-    const mensagem = body.text.message
-    console.log('Mensagem de ' + telefone + ': ' + mensagem)
-    const resposta = await perguntarIA(mensagem)
-    await enviarMensagem(telefone, resposta)
-    console.log('Resposta enviada: ' + resposta)
-    res.status(200).send('ok')
-  } catch (err) {
-    console.error('Erro:', err)
-    res.status(200).send('ok')
+function addMensagem(telefone, role, content) {
+  if (!historicos[telefone]) historicos[telefone] = []
+  historicos[telefone].push({ role, content })
+  if (historicos[telefone].length > 20) {
+    historicos[telefone] = historicos[telefone].slice(-20)
   }
-})
+}
 
-const PORTA = process.env.PORT || 3000
-app.listen(PORTA, () => {
-  console.log('Servidor rodando na porta ' + PORTA)
-})
+function getPaciente(telefone) {
+  return db.prepare('SELECT * FROM pacientes WHERE telefone = ?').get(telefone)
+}
+
+function salvarPaciente(telefone, dados) {
+  const existe = getPaciente(telefone)
+  if (existe) {
+    db.prepare(`UPDATE pacientes SET
+      nome_completo = COALESCE(?, nome_completo),
+      data_nascimento = COALESCE(?, data_nascimento),
+      sexo = COALESCE(?, sexo),
+      endereco = COALESCE(?, endereco),
+      plano_saude = COALESCE(?, plano_saude),
+      motivo_consulta = COALESCE(?, motivo_consulta),
+      ultima_atualizacao = datetime('now')
+      WHERE telefone = ?
+    `).run(
+      dados.nome_completo || null,
+      dados.data_nascimento || null,
+      dados.sexo || null,
+      dados.endereco || null,
+      dados.plano_saude || null,
+      dados.motivo_consulta || null,
+      telefone
+    )
+  } else {
+    db.prepare(`INSERT INTO pacientes
