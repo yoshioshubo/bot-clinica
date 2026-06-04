@@ -96,4 +96,19 @@ app.post('/webhook', async function(req, res) {
     if (!body.text || !body.phone) return res.status(200).send('ok')
     const telefone = body.phone
     const mensagem = body.text.message
-    co
+    console.log('De ' + telefone + ': ' + mensagem)
+    const resposta = await perguntarIA(telefone, mensagem)
+    await enviar(telefone, resposta)
+    res.status(200).send('ok')
+  } catch (err) {
+    console.error('Erro:', err)
+    res.status(200).send('ok')
+  }
+})
+
+app.get('/pacientes', function(req, res) {
+  res.json(db.prepare('SELECT * FROM pacientes ORDER BY atualizado DESC').all())
+})
+
+const PORTA = process.env.PORT || 3000
+app.listen(PORTA, function() { console.log('Rodando na porta ' + PORTA) })
