@@ -90,7 +90,7 @@ async function enviar(telefone, mensagem) {
   const url = 'https://api.z-api.io/instances/' + INSTANCE_ID + '/token/' + INSTANCE_TOKEN + '/send-text'
   const resp = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Client-Token': CLIENT_TOKEN },
     body: JSON.stringify({ phone: telefone, message: mensagem })
   })
   if (!resp.ok) {
