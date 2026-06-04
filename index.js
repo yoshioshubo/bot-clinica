@@ -22,9 +22,12 @@ async function perguntarIA(mensagem) {
     })
   })
   const data = await response.json()
-  return data.content[0].text
+  console.log('Resposta Claude:', JSON.stringify(data))
+  if (data.content && data.content[0] && data.content[0].text) {
+    return data.content[0].text
+  }
+  return 'Desculpe, tive um problema técnico. Tente novamente em instantes.'
 }
-
 async function enviarMensagem(telefone, mensagem) {
   await fetch(`https://api.z-api.io/instances/${INSTANCE_ID}/token/${INSTANCE_TOKEN}/send-text`, {
     method: 'POST',
