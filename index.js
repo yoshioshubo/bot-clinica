@@ -15,7 +15,7 @@ async function perguntarIA(mensagem) {
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-5',
       max_tokens: 1024,
       system: 'Você é um atendente virtual simpático de uma clínica médica. Seu objetivo é agendar consultas coletando: nome completo, data de nascimento, sexo, telefone, endereço, plano de saúde e motivo da consulta. Colete um dado por vez, de forma natural e amigável. Responda sempre em português brasileiro.',
       messages: [{ role: 'user', content: mensagem }]
