@@ -11,6 +11,7 @@ const INSTANCE_ID    = process.env.INSTANCE_ID    || '3F424535214202979B1E7A94F0
 const INSTANCE_TOKEN = process.env.INSTANCE_TOKEN || 'EA8E2F27C3F469BA1874CEED'
 const CLIENT_TOKEN   = process.env.CLIENT_TOKEN   || 'F778ca59b075541ad8cfd7e6cb843fc52S'
 const CLAUDE_KEY     = process.env.CLAUDE_KEY
+const OPENAI_KEY     = process.env.OPENAI_KEY
 const CALENDAR_ID    = process.env.CALENDAR_ID    || 'ygshubo@gmail.com'
 const EMAIL_USER     = process.env.EMAIL_USER || 'kidesignmadeiras@gmail.com'
 const EMAIL_PASS     = process.env.EMAIL_PASS || 'lgrifedhewiuvlcg'
@@ -135,6 +136,37 @@ async function buscarCep(cep) {
     }
   } catch (err) {
     console.error('Erro ao buscar CEP:', err.message)
+    return null
+  }
+}
+
+// ─── Transcrição de Áudio (Whisper) ────────────────────────────────────────────
+
+async function transcreverAudio(audioUrl) {
+  try {
+    // Baixa o áudio
+    const audioResp = await fetch(audioUrl)
+    if (!audioResp.ok) throw new Error('Erro ao baixar áudio')
+    const audioBuffer = await audioResp.arrayBuffer()
+
+    // Monta o FormData para o Whisper
+    const formData = new FormData()
+    formData.append('file', new Blob([audioBuffer], { type: 'audio/ogg' }), 'audio.ogg')
+    formData.append('model', 'whisper-1')
+    formData.append('language', 'pt')
+
+    const resp = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${OPENAI_KEY}` },
+      body: formData
+    })
+
+    const data = await resp.json()
+    if (!data.text) throw new Error('Transcrição vazia')
+    console.log('Áudio transcrito:', data.text)
+    return data.text
+  } catch (err) {
+    console.error('Erro ao transcrever áudio:', err.message)
     return null
   }
 }
@@ -630,9 +662,24 @@ app.post('/webhook', async function(req, res) {
   try {
     const body = req.body
     if (body.fromMe) return res.status(200).send('ok')
-    const mensagem = body.text?.message
     const telefone = body.phone
-    if (!mensagem || !telefone) return res.status(200).send('ok')
+    if (!telefone) return res.status(200).send('ok')
+
+    let mensagem = body.text?.message
+
+    // Detecta áudio e transcreve
+    if (!mensagem && body.audio?.audioUrl) {
+      console.log(`Áudio recebido de ${telefone}, transcrevendo...`)
+      const transcricao = await transcreverAudio(body.audio.audioUrl)
+      if (!transcricao) {
+        await enviar(telefone, 'Desculpe, não consegui entender o áudio. Pode digitar sua mensagem? 😊')
+        return res.status(200).send('ok')
+      }
+      mensagem = transcricao
+      console.log(`Áudio de ${telefone} transcrito: ${mensagem}`)
+    }
+
+    if (!mensagem) return res.status(200).send('ok')
     console.log(`De ${telefone}: ${mensagem}`)
     const resposta = await perguntarIA(telefone, mensagem)
     if (Array.isArray(resposta)) {
