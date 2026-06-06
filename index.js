@@ -419,6 +419,7 @@ REGRAS RÍGIDAS DESTA FASE:
 ${instrucaoEndereco}
 
 Colete os dados que FALTAM, um por vez, de forma leve e espontânea. NUNCA peça um dado já coletado.
+SEXO: Ao perguntar o sexo, ofereça as opções de forma respeitosa e natural, por exemplo: "Para o cadastro, você se identifica como *Homem*, *Mulher* ou prefere *Não informar*?" — aceite qualquer resposta sem julgamento.
 ENDEREÇO: Quando chegar a vez de coletar o endereço, peça o CEP. Quando o paciente informar o CEP, use DADOS: CEP:valor
 O e-mail deve ser perguntado, mas é opcional — se o paciente não tiver ou não quiser informar, aceite com naturalidade e use DADOS: EMAIL:nao_informado
 Quando TODOS os dados estiverem coletados, envie uma mensagem de confirmação no seguinte formato EXATO:
