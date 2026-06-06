@@ -215,7 +215,7 @@ async function verificarEEnviarLembretes() {
       if (!p.lembrete_dia && diffHoras >= 23 && diffHoras <= 25) {
         const msg = montarMensagemLembrete(p, 'dia')
         await enviar(p.telefone, msg)
-        if (p.email) {
+        if (p.email && p.email !== 'nao_informado') {
           await enviarEmail(
             p.email,
             'Lembrete de consulta — Clínica Geral',
@@ -230,7 +230,7 @@ async function verificarEEnviarLembretes() {
       if (!p.lembrete_2h && diffHoras >= 1.916 && diffHoras <= 2.083) {
         const msg = montarMensagemLembrete(p, '2h')
         await enviar(p.telefone, msg)
-        if (p.email) {
+        if (p.email && p.email !== 'nao_informado') {
           await enviarEmail(
             p.email,
             'Sua consulta é hoje! — Clínica Geral',
@@ -313,10 +313,12 @@ async function perguntarIA(telefone, mensagem) {
     !p.endereco   ? 'endereço'          : null,
     !p.plano      ? 'plano de saúde'    : null,
     !p.motivo     ? 'motivo da consulta' : null,
-    !p.email      ? 'e-mail (opcional)' : null,
-  ].filter(Boolean) : ['nome completo','data de nascimento','sexo','endereço','plano de saúde','motivo da consulta','e-mail (opcional)']
+    !p.email      ? 'e-mail'            : null,
+  ].filter(Boolean) : ['nome completo','data de nascimento','sexo','endereço','plano de saúde','motivo da consulta','e-mail']
 
-  const cadastroCompleto = dadosFaltando.filter(d => !d.includes('opcional')).length === 0
+  // Cadastro completo quando todos os campos obrigatórios estão preenchidos
+  // E o e-mail foi abordado (tem valor ou foi recusado = 'nao_informado')
+  const cadastroCompleto = dadosFaltando.length === 0
   const jaAgendado = p && p.agendamento
 
   let fase, instrucoesFase
@@ -343,7 +345,7 @@ REGRAS RÍGIDAS DESTA FASE:
     instrucoesFase = `SITUAÇÃO DO CADASTRO:\n${resumo}
 
 Colete os dados que FALTAM, um por vez, de forma leve e espontânea. NUNCA peça um dado já coletado.
-O e-mail é opcional — se o paciente disser que não tem ou não quiser informar, aceite e siga em frente.
+O e-mail deve ser perguntado, mas é opcional — se o paciente não tiver ou não quiser informar, aceite com naturalidade e use EMAIL:nao_informado no bloco DADOS.
 Quando TODOS os dados obrigatórios estiverem coletados, envie uma mensagem de confirmação no seguinte formato EXATO:
 Primeiro liste os dados assim:
 "Perfeito! Deixa eu confirmar seus dados:
@@ -411,7 +413,7 @@ Responda sempre em português brasileiro.`
       if (k === 'END')    d.endereco = v
       if (k === 'PLANO')  d.plano = v
       if (k === 'MOTIVO') d.motivo = v
-      if (k === 'EMAIL' && v !== 'nao_informado') d.email = v
+      if (k === 'EMAIL') d.email = v !== 'nao_informado' ? v : 'nao_informado'
     })
     if (Object.keys(d).length > 0) {
       salvar(telefone, d)
