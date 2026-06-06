@@ -27,6 +27,7 @@ const db = new Database('clinica.db')
 db.exec(`CREATE TABLE IF NOT EXISTS pacientes (
   telefone      TEXT PRIMARY KEY,
   nome          TEXT,
+  cpf           TEXT,
   nascimento    TEXT,
   sexo          TEXT,
   cep           TEXT,
@@ -64,6 +65,7 @@ const migracoes = [
   "ALTER TABLE pacientes ADD COLUMN logradouro TEXT",
   "ALTER TABLE pacientes ADD COLUMN numero TEXT",
   "ALTER TABLE pacientes ADD COLUMN complemento TEXT",
+  "ALTER TABLE pacientes ADD COLUMN cpf TEXT",
   "ALTER TABLE pacientes ADD COLUMN event_id TEXT",
   "ALTER TABLE pacientes ADD COLUMN status TEXT DEFAULT 'ativo'",
 ]
@@ -388,6 +390,7 @@ function salvar(telefone, d) {
   if (p) {
     db.prepare(`UPDATE pacientes SET
       nome        = COALESCE(?, nome),
+      cpf         = COALESCE(?, cpf),
       nascimento  = COALESCE(?, nascimento),
       sexo        = COALESCE(?, sexo),
       cep         = COALESCE(?, cep),
@@ -403,15 +406,15 @@ function salvar(telefone, d) {
       status      = COALESCE(?, status),
       atualizado  = datetime('now')
       WHERE telefone = ?`)
-      .run(d.nome||null, d.nascimento||null, d.sexo||null,
+      .run(d.nome||null, d.cpf||null, d.nascimento||null, d.sexo||null,
            d.cep||null, d.logradouro||null, d.numero||null, d.complemento||null,
            d.endereco||null, d.plano||null, d.motivo||null,
            d.email||null, d.agendamento||null, d.event_id||null, d.status||null, telefone)
   } else {
     db.prepare(`INSERT INTO pacientes
-      (telefone, nome, nascimento, sexo, cep, logradouro, numero, complemento, endereco, plano, motivo, email, agendamento, event_id, status, criado, atualizado)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ativo', datetime('now'), datetime('now'))`)
-      .run(telefone, d.nome||null, d.nascimento||null, d.sexo||null,
+      (telefone, nome, cpf, nascimento, sexo, cep, logradouro, numero, complemento, endereco, plano, motivo, email, agendamento, event_id, status, criado, atualizado)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ativo', datetime('now'), datetime('now'))`)
+      .run(telefone, d.nome||null, d.cpf||null, d.nascimento||null, d.sexo||null,
            d.cep||null, d.logradouro||null, d.numero||null, d.complemento||null,
            d.endereco||null, d.plano||null, d.motivo||null,
            d.email||null, d.agendamento||null, d.event_id||null)
@@ -431,6 +434,7 @@ async function perguntarIA(telefone, mensagem) {
 
   const dadosColetados = p ? [
     p.nome        ? `Nome: ${p.nome}`              : null,
+    p.cpf         ? `CPF: ${p.cpf}`               : null,
     p.nascimento  ? `Nascimento: ${p.nascimento}`  : null,
     p.sexo        ? `Sexo: ${p.sexo}`              : null,
     p.logradouro  ? `Logradouro: ${p.logradouro}`  : null,
@@ -444,6 +448,7 @@ async function perguntarIA(telefone, mensagem) {
 
   const dadosFaltando = p ? [
     !p.nome          ? 'nome completo'       : null,
+    !p.cpf           ? 'CPF'                : null,
     !p.nascimento    ? 'data de nascimento'  : null,
     !p.sexo          ? 'sexo'               : null,
     !enderecoCompleto ? 'endereço'           : null,
@@ -502,6 +507,7 @@ REGRAS RÍGIDAS DESTA FASE:
 ${instrucaoEndereco}
 
 Colete os dados que FALTAM, um por vez, de forma leve e espontânea. NUNCA peça um dado já coletado.
+CPF: Ao perguntar o CPF, explique que é para identificação segura do paciente. Aceite no formato com ou sem pontuação. Use DADOS: CPF:valor
 SEXO: Ao perguntar o sexo, ofereça as opções de forma respeitosa e natural, por exemplo: "Para o cadastro, você se identifica como *Homem*, *Mulher* ou prefere *Não informar*?" — aceite qualquer resposta sem julgamento.
 ENDEREÇO: Quando chegar a vez de coletar o endereço, peça o CEP. Quando o paciente informar o CEP, use DADOS: CEP:valor
 O e-mail deve ser perguntado, mas é opcional — se o paciente não tiver ou não quiser informar, aceite com naturalidade e use DADOS: EMAIL:nao_informado
@@ -509,6 +515,7 @@ Quando TODOS os dados estiverem coletados, envie uma mensagem de confirmação n
 "Perfeito! Deixa eu confirmar seus dados:
 
 • *Nome:* [nome]
+• *CPF:* [cpf]
 • *Data de nascimento:* [nascimento]
 • *Sexo:* [sexo]
 • *Endereço:* [endereço completo]
@@ -521,7 +528,7 @@ Depois escreva:
 "Está tudo correto? Responda *Sim* para confirmar ou *Não* para corrigir alguma informação 😊"
 
 Sempre que coletar dados novos, adicione ao final da resposta:
-DADOS: NOME:valor|NASC:valor|SEXO:valor|CEP:valor|NUM:valor|COMP:valor|PLANO:valor|MOTIVO:valor|EMAIL:valor
+DADOS: NOME:valor|CPF:valor|NASC:valor|SEXO:valor|CEP:valor|NUM:valor|COMP:valor|PLANO:valor|MOTIVO:valor|EMAIL:valor
 (inclua apenas os campos coletados NESSA mensagem)`
   }
 
@@ -567,6 +574,7 @@ Responda sempre em português brasileiro.`
       const v = m[2].trim()
       if (v === '?' || v === '') return
       if (k === 'NOME')   d.nome = v
+      if (k === 'CPF')    d.cpf = v.replace(/\D/g, '').replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
       if (k === 'NASC')   d.nascimento = v
       if (k === 'SEXO')   d.sexo = v
       if (k === 'CEP')    d.cep = v
