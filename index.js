@@ -24,23 +24,25 @@ const GOOGLE_CREDENTIALS = process.env.GOOGLE_CREDENTIALS
 const db = new Database('clinica.db')
 
 db.exec(`CREATE TABLE IF NOT EXISTS pacientes (
-  telefone    TEXT PRIMARY KEY,
-  nome        TEXT,
-  nascimento  TEXT,
-  sexo        TEXT,
-  cep         TEXT,
-  logradouro  TEXT,
-  numero      TEXT,
-  complemento TEXT,
-  endereco    TEXT,
-  plano       TEXT,
-  motivo      TEXT,
-  email       TEXT,
-  agendamento TEXT,
-  lembrete_dia TEXT,
-  lembrete_2h  TEXT,
-  criado      TEXT,
-  atualizado  TEXT
+  telefone      TEXT PRIMARY KEY,
+  nome          TEXT,
+  nascimento    TEXT,
+  sexo          TEXT,
+  cep           TEXT,
+  logradouro    TEXT,
+  numero        TEXT,
+  complemento   TEXT,
+  endereco      TEXT,
+  plano         TEXT,
+  motivo        TEXT,
+  email         TEXT,
+  agendamento   TEXT,
+  event_id      TEXT,
+  status        TEXT DEFAULT 'ativo',
+  lembrete_dia  TEXT,
+  lembrete_2h   TEXT,
+  criado        TEXT,
+  atualizado    TEXT
 )`)
 
 db.exec(`CREATE TABLE IF NOT EXISTS historico (
@@ -61,6 +63,8 @@ const migracoes = [
   "ALTER TABLE pacientes ADD COLUMN logradouro TEXT",
   "ALTER TABLE pacientes ADD COLUMN numero TEXT",
   "ALTER TABLE pacientes ADD COLUMN complemento TEXT",
+  "ALTER TABLE pacientes ADD COLUMN event_id TEXT",
+  "ALTER TABLE pacientes ADD COLUMN status TEXT DEFAULT 'ativo'",
 ]
 migracoes.forEach(sql => { try { db.exec(sql) } catch (_) {} })
 
@@ -181,7 +185,7 @@ async function criarEvento(paciente, dataStr, horaStr) {
   const fim    = new Date(inicio.getTime() + 60 * 60 * 1000)
 
   const calendar = getCalendarClient()
-  await calendar.events.insert({
+  const resp = await calendar.events.insert({
     calendarId: CALENDAR_ID,
     resource: {
       summary: `Consulta - ${paciente.nome}`,
@@ -192,6 +196,35 @@ async function criarEvento(paciente, dataStr, horaStr) {
         `Motivo: ${paciente.motivo}`,
         `Plano: ${paciente.plano || 'Particular'}`,
       ].join('\n'),
+      start: { dateTime: inicio.toISOString(), timeZone: 'America/Sao_Paulo' },
+      end:   { dateTime: fim.toISOString(),    timeZone: 'America/Sao_Paulo' }
+    }
+  })
+  return resp.data.id
+}
+
+async function cancelarEvento(eventId) {
+  try {
+    const calendar = getCalendarClient()
+    await calendar.events.delete({ calendarId: CALENDAR_ID, eventId })
+    console.log('Evento cancelado no Google Agenda:', eventId)
+  } catch (err) {
+    console.error('Erro ao cancelar evento:', err.message)
+  }
+}
+
+async function reagendarEvento(paciente, eventId, dataStr, horaStr) {
+  const [dia, mes, ano] = dataStr.split('/')
+  const [hh, mm] = horaStr.split(':')
+  const inicio = new Date(`${ano}-${mes}-${dia}T${hh}:${mm}:00-03:00`)
+  const fim    = new Date(inicio.getTime() + 60 * 60 * 1000)
+
+  const calendar = getCalendarClient()
+  await calendar.events.patch({
+    calendarId: CALENDAR_ID,
+    eventId,
+    resource: {
+      summary: `Consulta - ${paciente.nome}`,
       start: { dateTime: inicio.toISOString(), timeZone: 'America/Sao_Paulo' },
       end:   { dateTime: fim.toISOString(),    timeZone: 'America/Sao_Paulo' }
     }
@@ -331,20 +364,22 @@ function salvar(telefone, d) {
       motivo      = COALESCE(?, motivo),
       email       = COALESCE(?, email),
       agendamento = COALESCE(?, agendamento),
+      event_id    = COALESCE(?, event_id),
+      status      = COALESCE(?, status),
       atualizado  = datetime('now')
       WHERE telefone = ?`)
       .run(d.nome||null, d.nascimento||null, d.sexo||null,
            d.cep||null, d.logradouro||null, d.numero||null, d.complemento||null,
            d.endereco||null, d.plano||null, d.motivo||null,
-           d.email||null, d.agendamento||null, telefone)
+           d.email||null, d.agendamento||null, d.event_id||null, d.status||null, telefone)
   } else {
     db.prepare(`INSERT INTO pacientes
-      (telefone, nome, nascimento, sexo, cep, logradouro, numero, complemento, endereco, plano, motivo, email, agendamento, criado, atualizado)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`)
+      (telefone, nome, nascimento, sexo, cep, logradouro, numero, complemento, endereco, plano, motivo, email, agendamento, event_id, status, criado, atualizado)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ativo', datetime('now'), datetime('now'))`)
       .run(telefone, d.nome||null, d.nascimento||null, d.sexo||null,
            d.cep||null, d.logradouro||null, d.numero||null, d.complemento||null,
            d.endereco||null, d.plano||null, d.motivo||null,
-           d.email||null, d.agendamento||null)
+           d.email||null, d.agendamento||null, d.event_id||null)
   }
 }
 
@@ -386,9 +421,20 @@ async function perguntarIA(telefone, mensagem) {
   const jaAgendado = p && p.agendamento
 
   let fase, instrucoesFase
-  if (jaAgendado) {
+  const statusAtual = p?.status || 'ativo'
+
+  if (jaAgendado && statusAtual === 'cancelado') {
+    fase = 'CANCELADO'
+    instrucoesFase = `A consulta do paciente foi cancelada. Se ele quiser reagendar, pergunte nova data e horário e use o mesmo fluxo de AGENDAMENTO (AGENDA: DATA:DD/MM/AAAA|HORA:HH:MM).
+Horário de funcionamento: segunda a sexta das 08h às 18h, sábado das 08h às 12h, domingo fechado.
+Hoje é ${diaSemanaHoje()}, ${dataHoje()}.`
+  } else if (jaAgendado) {
     fase = 'CONCLUIDO'
-    instrucoesFase = `O paciente já está com consulta agendada para ${p.agendamento}. Responda com simpatia se ele perguntar algo.`
+    instrucoesFase = `O paciente já está com consulta agendada para ${p.agendamento}.
+Se ele quiser *cancelar*, confirme a intenção e use ao final: CANCELAR
+Se ele quiser *reagendar*, pergunte nova data e horário e use: AGENDA: DATA:DD/MM/AAAA|HORA:HH:MM
+Hoje é ${diaSemanaHoje()}, ${dataHoje()}. Horários: seg-sex 08h-18h, sáb 08h-12h, dom fechado.
+Para qualquer outro assunto, responda com simpatia.`
   } else if (cadastroCompleto) {
     fase = 'AGENDAMENTO'
     instrucoesFase = `O cadastro está completo. Pergunte qual data e horário o paciente prefere para a consulta.
@@ -535,8 +581,11 @@ Responda sempre em português brasileiro.`
         mensagemExtra = `\n\nInfelizmente não atendemos nesse dia. Funcionamos de segunda a sexta das 8h às 18h e sábados das 8h às 12h. Qual outro dia prefere?`
       } else if (livres.includes(horaStr)) {
         const pacienteAtual = getPaciente(telefone)
-        await criarEvento(pacienteAtual, dataStr, horaStr)
-        salvar(telefone, { agendamento: `${dataStr} às ${horaStr}` })
+        // Se já tinha evento, cancela o antigo antes de criar novo
+        if (pacienteAtual?.event_id) await cancelarEvento(pacienteAtual.event_id)
+        const eventId = await criarEvento(pacienteAtual, dataStr, horaStr)
+        salvar(telefone, { agendamento: `${dataStr} às ${horaStr}`, event_id: eventId, status: 'ativo' })
+        db.prepare("UPDATE pacientes SET lembrete_dia = NULL, lembrete_2h = NULL WHERE telefone = ?").run(telefone)
         console.log(`Consulta agendada: ${telefone} — ${dataStr} ${horaStr}`)
         mensagemExtra = `\n\n✅ Consulta confirmada para *${dataStr} às ${horaStr}*! Você receberá um lembrete no dia anterior e 2 horas antes. Até lá! 😊`
       } else {
@@ -549,8 +598,17 @@ Responda sempre em português brasileiro.`
     }
   }
 
+  // Processa cancelamento
+  if (/\bCANCELAR\b/.test(texto)) {
+    const pacienteAtual = getPaciente(telefone)
+    if (pacienteAtual?.event_id) await cancelarEvento(pacienteAtual.event_id)
+    db.prepare("UPDATE pacientes SET status = 'cancelado', agendamento = NULL, event_id = NULL, lembrete_dia = NULL, lembrete_2h = NULL, atualizado = datetime('now') WHERE telefone = ?").run(telefone)
+    console.log(`Consulta cancelada: ${telefone}`)
+    mensagemExtra = `\n\n❌ Sua consulta foi cancelada. Se quiser reagendar, é só me avisar! 😊`
+  }
+
   // Remove blocos internos antes de enviar ao paciente
-  const limpo = texto.replace(/\n?DADOS:.*$/im, '').replace(/\n?AGENDA:.*$/im, '').trim()
+  const limpo = texto.replace(/\n?DADOS:.*$/im, '').replace(/\n?AGENDA:.*$/im, '').replace(/\bCANCELAR\b/g, '').trim()
 
   // Se houver separador |||, retorna array com duas mensagens
   if (limpo.includes('|||')) {
