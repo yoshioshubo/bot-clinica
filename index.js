@@ -609,10 +609,15 @@ async function perguntarIA(telefone, mensagem) {
 
   if (primeiroContato) {
     fase = 'RECEPCAO'
-    instrucoesFase = `É o primeiro contato deste paciente. Cumprimente-o de forma calorosa, apresente-se como Ana da Clínica de Psicologia JF e pergunte como pode ajudá-lo.
-NÃO inicie o cadastro ainda — espere o paciente demonstrar interesse em agendar.
-Se ele tiver dúvidas, responda usando as informações da clínica abaixo.
-Se ele quiser agendar, diga que vai precisar de alguns dados e inicie o cadastro naturalmente.`
+    instrucoesFase = `É o primeiro contato deste paciente. Cumprimente-o de forma calorosa e apresente-se.
+
+REGRAS DESTA FASE:
+- NUNCA pergunte se é a primeira vez ou se já foi atendido — isso é desnecessário e invasivo
+- Pergunte apenas: "Como posso te ajudar hoje?" e espere a resposta
+- Se o paciente tiver dúvidas sobre a clínica, responda naturalmente usando as informações disponíveis
+- Se o paciente demonstrar interesse em agendar (ex: "quero marcar", "quero agendar", "quero uma consulta"), aí sim diga que vai precisar de alguns dados e inicie o cadastro
+- Se a resposta for vaga (ex: "primeira", "quero atendimento", "vim me consultar"), pergunte gentilmente: "Você gostaria de agendar uma consulta ou tem alguma dúvida que posso esclarecer?"
+- Somente inicie o cadastro quando o paciente confirmar claramente que quer agendar`
   } else if (jaAgendado && statusAtual === 'cancelado') {
     fase = 'CANCELADO'
     instrucoesFase = `A consulta do paciente foi cancelada. Se ele quiser reagendar, pergunte nova data e horário.
