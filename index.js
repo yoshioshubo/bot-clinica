@@ -15,7 +15,7 @@ const OPENAI_KEY     = process.env.OPENAI_KEY
 const CALENDAR_ID    = process.env.CALENDAR_ID    || 'ygshubo@gmail.com'
 const EMAIL_USER     = process.env.EMAIL_USER      || 'kidesignmadeiras@gmail.com'
 const EMAIL_PASS     = process.env.EMAIL_PASS      || 'lgrifedhewiuvlcg'
-const SHEET_ID       = process.env.SHEET_ID        || null
+const SHEET_ID       = process.env.SHEET_ID        || '1FjcGIaMzYmRV3T4KakIOjFdi-aBCm55kBI-j37K1xgo'
 const OWNER_EMAIL    = process.env.OWNER_EMAIL     || 'ygshubo@gmail.com'
 
 // Config carregada da planilha (valores padrão enquanto não carrega)
@@ -171,18 +171,27 @@ const TEMPLATE_ROWS = [
   ['observacoes', '', 'Informações extras para a recepcionista'],
 ]
 
-async function criarPlanilhaConfig() {
+async function preencherTemplatePlanilha(spreadsheetId) {
   try {
-    const { sheets, drive } = getSheetsClient()
+    const { sheets } = getSheetsClient()
 
-    // Cria a planilha
-    const resp = await sheets.spreadsheets.create({
+    // Renomeia a primeira aba para Configuracao
+    const sheetInfo = await sheets.spreadsheets.get({ spreadsheetId })
+    const sheetId = sheetInfo.data.sheets[0].properties.sheetId
+
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
       resource: {
-        properties: { title: 'Bot Clínica — Configuração' },
-        sheets: [{ properties: { title: 'Configuracao' } }]
+        requests: [
+          { updateSheetProperties: { properties: { sheetId, title: 'Configuracao' }, fields: 'title' } },
+          { repeatCell: {
+              range: { sheetId, startRowIndex: 0, endRowIndex: 1 },
+              cell: { userEnteredFormat: { backgroundColor: { red: 0.2, green: 0.5, blue: 0.8 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } },
+              fields: 'userEnteredFormat'
+          }}
+        ]
       }
     })
-    const spreadsheetId = resp.data.spreadsheetId
 
     // Preenche o template
     await sheets.spreadsheets.values.update({
@@ -192,35 +201,13 @@ async function criarPlanilhaConfig() {
       resource: { values: TEMPLATE_ROWS }
     })
 
-    // Formata cabeçalho
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      resource: {
-        requests: [{
-          repeatCell: {
-            range: { sheetId: 0, startRowIndex: 0, endRowIndex: 1 },
-            cell: { userEnteredFormat: { backgroundColor: { red: 0.2, green: 0.5, blue: 0.8 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } },
-            fields: 'userEnteredFormat'
-          }
-        }]
-      }
-    })
-
-    // Compartilha com o dono
-    await drive.permissions.create({
-      fileId: spreadsheetId,
-      resource: { type: 'user', role: 'writer', emailAddress: OWNER_EMAIL }
-    })
-
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    console.log('✅ PLANILHA DE CONFIGURAÇÃO CRIADA!')
-    console.log(`📋 Link: https://docs.google.com/spreadsheets/d/${spreadsheetId}`)
-    console.log(`🔑 Adicione no Railway: SHEET_ID=${spreadsheetId}`)
+    console.log('✅ TEMPLATE PREENCHIDO NA PLANILHA!')
+    console.log(`📋 Acesse: https://docs.google.com/spreadsheets/d/${spreadsheetId}`)
+    console.log('✏️  Preencha os valores e reinicie o bot.')
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
-    return spreadsheetId
   } catch (err) {
-    console.error('Erro ao criar planilha:', err.message)
-    return null
+    console.error('Erro ao preencher template:', err.message)
   }
 }
 
@@ -260,11 +247,20 @@ async function lerConfigPlanilha(spreadsheetId) {
 async function inicializarConfig() {
   console.log('SHEET_ID:', SHEET_ID || 'não definido')
   if (SHEET_ID) {
-    console.log('Lendo configuração da planilha...')
-    await lerConfigPlanilha(SHEET_ID)
+    // Verifica se a planilha já tem dados ou precisa do template
+    const { sheets } = getSheetsClient()
+    const resp = await sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: 'A1' }).catch(() => null)
+    const temDados = resp?.data?.values?.length > 0
+
+    if (!temDados) {
+      console.log('Planilha vazia — preenchendo template...')
+      await preencherTemplatePlanilha(SHEET_ID)
+    } else {
+      console.log('Lendo configuração da planilha...')
+      await lerConfigPlanilha(SHEET_ID)
+    }
   } else {
-    console.log('SHEET_ID não definido — criando planilha template...')
-    await criarPlanilhaConfig()
+    console.log('⚠️  SHEET_ID não definido. Adicione a variável SHEET_ID no Railway.')
   }
 }
 
