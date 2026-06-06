@@ -329,7 +329,9 @@ async function perguntarIA(telefone, mensagem) {
 Horário de funcionamento: segunda a sexta das 08h às 18h, sábado das 08h às 12h. Domingos fechado. Consultas em horas exatas (08:00, 09:00, 10:00...).
 Quando o paciente informar data e horário, adicione ao final da resposta:
 AGENDA: DATA:DD/MM/AAAA|HORA:HH:MM
-(converta expressões como "amanhã", "quinta" para a data real; hoje é ${new Date().toLocaleDateString('pt-BR')})`
+(converta expressões como "amanhã", "quinta" para a data real; hoje é ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })})
+
+IMPORTANTE: NÃO confirme nem negue o agendamento na sua resposta — apenas diga algo como "Deixa eu verificar a disponibilidade para esse horário!" e aguarde. O sistema fará a confirmação automaticamente.`
   } else {
     fase = 'CADASTRO'
     const resumo = dadosColetados.length > 0
