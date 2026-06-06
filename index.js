@@ -13,8 +13,28 @@ const CLIENT_TOKEN   = process.env.CLIENT_TOKEN   || 'F778ca59b075541ad8cfd7e6cb
 const CLAUDE_KEY     = process.env.CLAUDE_KEY
 const OPENAI_KEY     = process.env.OPENAI_KEY
 const CALENDAR_ID    = process.env.CALENDAR_ID    || 'ygshubo@gmail.com'
-const EMAIL_USER     = process.env.EMAIL_USER || 'kidesignmadeiras@gmail.com'
-const EMAIL_PASS     = process.env.EMAIL_PASS || 'lgrifedhewiuvlcg'
+const EMAIL_USER     = process.env.EMAIL_USER      || 'kidesignmadeiras@gmail.com'
+const EMAIL_PASS     = process.env.EMAIL_PASS      || 'lgrifedhewiuvlcg'
+const SHEET_ID       = process.env.SHEET_ID        || null
+const OWNER_EMAIL    = process.env.OWNER_EMAIL     || 'ygshubo@gmail.com'
+
+// Config carregada da planilha (valores padrão enquanto não carrega)
+let clinicaConfig = {
+  nome:              'Clínica',
+  recepcionista:     'Ana',
+  especialidade:     '',
+  endereco:          '',
+  telefone:          '',
+  convenios:         '',
+  pagamentos:        'todas as formas',
+  estacionamento:    'não informado',
+  elevador:          'não informado',
+  referencia:        '',
+  horario_seg_sex:   '08:00-18:00',
+  horario_sab:       '08:00-12:00',
+  duracao_consulta:  60,
+  observacoes:       '',
+}
 
 const GOOGLE_CREDENTIALS = process.env.GOOGLE_CREDENTIALS
   ? JSON.parse(process.env.GOOGLE_CREDENTIALS)
@@ -119,6 +139,131 @@ function parseDatetimeBR(agendamento) {
   const [dia, mes, ano] = data.split('/')
   const [hh, mm] = hora.split(':')
   return new Date(`${ano}-${mes}-${dia}T${hh}:${mm}:00-03:00`)
+}
+
+// ─── Google Sheets (Configuração da Clínica) ───────────────────────────────────
+
+function getSheetsClient() {
+  const auth = new google.auth.JWT(
+    GOOGLE_CREDENTIALS.client_email,
+    null,
+    GOOGLE_CREDENTIALS.private_key,
+    ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+  )
+  return { sheets: google.sheets({ version: 'v4', auth }), drive: google.drive({ version: 'v3', auth }) }
+}
+
+const TEMPLATE_ROWS = [
+  ['Campo', 'Valor', 'Descrição'],
+  ['nome_clinica', '', 'Nome completo da clínica'],
+  ['nome_recepcionista', 'Ana', 'Nome da recepcionista virtual'],
+  ['especialidade', '', 'Ex: Psicologia, Odontologia'],
+  ['endereco', '', 'Endereço completo da clínica'],
+  ['telefone', '', 'Telefone de contato (com DDD)'],
+  ['convenios', '', 'Convênios aceitos (separados por vírgula)'],
+  ['pagamentos', '', 'Formas de pagamento aceitas'],
+  ['estacionamento', 'Sim', 'Sim ou Não'],
+  ['elevador', 'Sim', 'Sim ou Não'],
+  ['ponto_referencia', '', 'Ponto de referência para localização'],
+  ['horario_seg_sex', '08:00-18:00', 'Horário seg a sex (formato HH:MM-HH:MM)'],
+  ['horario_sab', '08:00-12:00', 'Horário sábado (deixe vazio se não atender)'],
+  ['duracao_consulta', '60', 'Duração da consulta em minutos'],
+  ['observacoes', '', 'Informações extras para a recepcionista'],
+]
+
+async function criarPlanilhaConfig() {
+  try {
+    const { sheets, drive } = getSheetsClient()
+
+    // Cria a planilha
+    const resp = await sheets.spreadsheets.create({
+      resource: {
+        properties: { title: 'Bot Clínica — Configuração' },
+        sheets: [{ properties: { title: 'Configuracao' } }]
+      }
+    })
+    const spreadsheetId = resp.data.spreadsheetId
+
+    // Preenche o template
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: 'Configuracao!A1',
+      valueInputOption: 'RAW',
+      resource: { values: TEMPLATE_ROWS }
+    })
+
+    // Formata cabeçalho
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [{
+          repeatCell: {
+            range: { sheetId: 0, startRowIndex: 0, endRowIndex: 1 },
+            cell: { userEnteredFormat: { backgroundColor: { red: 0.2, green: 0.5, blue: 0.8 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } },
+            fields: 'userEnteredFormat'
+          }
+        }]
+      }
+    })
+
+    // Compartilha com o dono
+    await drive.permissions.create({
+      fileId: spreadsheetId,
+      resource: { type: 'user', role: 'writer', emailAddress: OWNER_EMAIL }
+    })
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    console.log('✅ PLANILHA DE CONFIGURAÇÃO CRIADA!')
+    console.log(`📋 Link: https://docs.google.com/spreadsheets/d/${spreadsheetId}`)
+    console.log(`🔑 Adicione no Railway: SHEET_ID=${spreadsheetId}`)
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+    return spreadsheetId
+  } catch (err) {
+    console.error('Erro ao criar planilha:', err.message)
+    return null
+  }
+}
+
+async function lerConfigPlanilha(spreadsheetId) {
+  try {
+    const { sheets } = getSheetsClient()
+    const resp = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Configuracao!A2:B99'
+    })
+    const rows = resp.data.values || []
+    const config = {}
+    rows.forEach(([campo, valor]) => { if (campo && valor !== undefined) config[campo] = valor })
+
+    // Aplica na config global
+    if (config.nome_clinica)        clinicaConfig.nome            = config.nome_clinica
+    if (config.nome_recepcionista)  clinicaConfig.recepcionista   = config.nome_recepcionista
+    if (config.especialidade)       clinicaConfig.especialidade   = config.especialidade
+    if (config.endereco)            clinicaConfig.endereco        = config.endereco
+    if (config.telefone)            clinicaConfig.telefone        = config.telefone
+    if (config.convenios)           clinicaConfig.convenios       = config.convenios
+    if (config.pagamentos)          clinicaConfig.pagamentos      = config.pagamentos
+    if (config.estacionamento)      clinicaConfig.estacionamento  = config.estacionamento
+    if (config.elevador)            clinicaConfig.elevador        = config.elevador
+    if (config.ponto_referencia)    clinicaConfig.referencia      = config.ponto_referencia
+    if (config.horario_seg_sex)     clinicaConfig.horario_seg_sex = config.horario_seg_sex
+    if (config.horario_sab)         clinicaConfig.horario_sab     = config.horario_sab
+    if (config.duracao_consulta)    clinicaConfig.duracao_consulta = parseInt(config.duracao_consulta) || 60
+    if (config.observacoes)         clinicaConfig.observacoes     = config.observacoes
+
+    console.log('✅ Configuração carregada da planilha:', clinicaConfig.nome)
+  } catch (err) {
+    console.error('Erro ao ler planilha:', err.message)
+  }
+}
+
+async function inicializarConfig() {
+  if (SHEET_ID) {
+    await lerConfigPlanilha(SHEET_ID)
+  } else {
+    console.log('SHEET_ID não definido — criando planilha template...')
+    await criarPlanilhaConfig()
+  }
 }
 
 // ─── CEP ───────────────────────────────────────────────────────────────────────
@@ -539,17 +684,21 @@ DADOS: NOME:valor|CPF:valor|NASC:valor|SEXO:valor|CEP:valor|NUM:valor|COMP:valor
 (inclua apenas os campos coletados NESSA mensagem)`
   }
 
-  const system = `Você é Ana, recepcionista da Clínica de Psicologia JF. Você é calorosa, empática e conversa de forma completamente natural — como uma atendente humana real, não um robô.
+  const [hSegSexIni, hSegSexFim] = clinicaConfig.horario_seg_sex.split('-')
+  const horarioSab = clinicaConfig.horario_sab ? `sábado das ${clinicaConfig.horario_sab.replace('-', ' às ')}` : 'não atende sábados'
+
+  const system = `Você é ${clinicaConfig.recepcionista}, recepcionista da ${clinicaConfig.nome}. Você é calorosa, empática e conversa de forma completamente natural — como uma atendente humana real, não um robô.
 
 INFORMAÇÕES DA CLÍNICA (use para responder dúvidas):
-- Nome: Clínica de Psicologia JF
-- Endereço: Rua dos Bandeirantes, 345, sala 1201 — perto do Wizard (curso de inglês). Atenção: o prédio NÃO tem elevador.
-- Especialidade: Psicologia
-- Convênios aceitos: Unimed, Bradesco Saúde, XPTO, Amil, Clube dos Militares, BB Saúde
-- Formas de pagamento: todas (cartão, Pix, dinheiro)
-- Horário de funcionamento: segunda a sexta das 08h às 18h, sábado das 08h às 12h, domingo fechado
-- Estacionamento: sim, disponível
-- Telefone para contato: (32) 9 9999-1234
+- Nome: ${clinicaConfig.nome}
+- Especialidade: ${clinicaConfig.especialidade}
+- Endereço: ${clinicaConfig.endereco}${clinicaConfig.referencia ? ` — Referência: ${clinicaConfig.referencia}` : ''}
+- Elevador: ${clinicaConfig.elevador}
+- Estacionamento: ${clinicaConfig.estacionamento}
+- Convênios aceitos: ${clinicaConfig.convenios}
+- Formas de pagamento: ${clinicaConfig.pagamentos}
+- Horário de funcionamento: segunda a sexta das ${hSegSexIni} às ${hSegSexFim}, ${horarioSab}, domingo fechado
+- Telefone para contato: ${clinicaConfig.telefone}${clinicaConfig.observacoes ? `\n- Observações: ${clinicaConfig.observacoes}` : ''}
 
 FASE ATUAL: ${fase}
 
@@ -740,4 +889,7 @@ app.get('/health', function(req, res) {
 })
 
 const PORTA = process.env.PORT || 8080
-app.listen(PORTA, function() { console.log('Rodando na porta ' + PORTA) })
+app.listen(PORTA, async function() {
+  console.log('Rodando na porta ' + PORTA)
+  await inicializarConfig()
+})
