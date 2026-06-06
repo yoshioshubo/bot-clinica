@@ -667,6 +667,9 @@ app.post('/webhook', async function(req, res) {
 
     let mensagem = body.text?.message
 
+    // Log completo para debug de áudio
+    if (!mensagem) console.log('BODY SEM TEXTO:', JSON.stringify(body))
+
     // Detecta áudio e transcreve
     if (!mensagem && body.audio?.audioUrl) {
       console.log(`Áudio recebido de ${telefone}, transcrevendo...`)
