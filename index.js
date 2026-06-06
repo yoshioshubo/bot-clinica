@@ -258,7 +258,9 @@ async function lerConfigPlanilha(spreadsheetId) {
 }
 
 async function inicializarConfig() {
+  console.log('SHEET_ID:', SHEET_ID || 'não definido')
   if (SHEET_ID) {
+    console.log('Lendo configuração da planilha...')
     await lerConfigPlanilha(SHEET_ID)
   } else {
     console.log('SHEET_ID não definido — criando planilha template...')
