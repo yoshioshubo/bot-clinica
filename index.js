@@ -145,13 +145,15 @@ async function buscarCep(cep) {
 async function transcreverAudio(audioUrl) {
   try {
     // Baixa o áudio
+    console.log('Baixando áudio de:', audioUrl)
     const audioResp = await fetch(audioUrl)
-    if (!audioResp.ok) throw new Error('Erro ao baixar áudio')
+    if (!audioResp.ok) throw new Error(`Erro ao baixar áudio: ${audioResp.status}`)
     const audioBuffer = await audioResp.arrayBuffer()
+    console.log('Áudio baixado, tamanho:', audioBuffer.byteLength, 'bytes')
 
     // Monta o FormData para o Whisper
     const formData = new FormData()
-    formData.append('file', new Blob([audioBuffer], { type: 'audio/ogg' }), 'audio.ogg')
+    formData.append('file', new Blob([audioBuffer], { type: 'audio/ogg; codecs=opus' }), 'audio.ogg')
     formData.append('model', 'whisper-1')
     formData.append('language', 'pt')
 
@@ -162,7 +164,8 @@ async function transcreverAudio(audioUrl) {
     })
 
     const data = await resp.json()
-    if (!data.text) throw new Error('Transcrição vazia')
+    console.log('Resposta Whisper:', JSON.stringify(data))
+    if (!data.text) throw new Error(`Transcrição falhou: ${JSON.stringify(data)}`)
     console.log('Áudio transcrito:', data.text)
     return data.text
   } catch (err) {
