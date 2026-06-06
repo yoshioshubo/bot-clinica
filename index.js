@@ -810,7 +810,12 @@ Responda sempre em português brasileiro.`
         salvar(telefone, { agendamento: `${dataStr} às ${horaStr}`, event_id: eventId, status: 'ativo' })
         db.prepare("UPDATE pacientes SET lembrete_dia = NULL, lembrete_2h = NULL WHERE telefone = ?").run(telefone)
         console.log(`Consulta agendada: ${telefone} — ${dataStr} ${horaStr}`)
-        mensagemExtra = `\n\n✅ Consulta confirmada para *${dataStr} às ${horaStr}*! Você receberá um lembrete no dia anterior e 2 horas antes. Até lá! 😊`
+        mensagemExtra = `\n\n✅ *Consulta confirmada!*\n\n` +
+          `📅 *Data e horário:* ${dataStr} às ${horaStr}\n` +
+          `📍 *Endereço:* ${clinicaConfig.endereco}\n` +
+          (clinicaConfig.referencia ? `🗺️ *Referência:* ${clinicaConfig.referencia}\n` : '') +
+          (clinicaConfig.elevador === 'Não' || clinicaConfig.elevador === 'Nao' ? `⚠️ *Atenção:* O prédio não possui elevador.\n` : '') +
+          `\nVocê receberá um lembrete no dia anterior e 2 horas antes. Até lá! 😊`
       } else {
         const lista = livres.length > 0 ? livres.join(', ') : 'nenhum disponível nesse dia'
         mensagemExtra = `\n\nInfelizmente o horário das ${horaStr} já está ocupado. Os horários disponíveis em ${dataStr} são: *${lista}*. Qual prefere?`
