@@ -325,13 +325,16 @@ async function perguntarIA(telefone, mensagem) {
     instrucoesFase = `O paciente já está com consulta agendada para ${p.agendamento}. Responda com simpatia se ele perguntar algo.`
   } else if (cadastroCompleto) {
     fase = 'AGENDAMENTO'
-    instrucoesFase = `O cadastro está completo. Agora pergunte qual data e horário o paciente prefere para a consulta.
-Horário de funcionamento: segunda a sexta das 08h às 18h, sábado das 08h às 12h. Domingos fechado. Consultas em horas exatas (08:00, 09:00, 10:00...).
-Quando o paciente informar data e horário, adicione ao final da resposta:
-AGENDA: DATA:DD/MM/AAAA|HORA:HH:MM
-(converta expressões como "amanhã", "quinta" para a data real; hoje é ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })})
+    instrucoesFase = `O cadastro está completo. Pergunte qual data e horário o paciente prefere para a consulta.
 
-IMPORTANTE: NÃO confirme nem negue o agendamento na sua resposta — apenas diga algo como "Deixa eu verificar a disponibilidade para esse horário!" e aguarde. O sistema fará a confirmação automaticamente.`
+REGRAS RÍGIDAS DESTA FASE:
+- Funcionamos de segunda a sexta das 08h às 18h, sábado das 08h às 12h, domingo fechado. Consultas em horas exatas.
+- Hoje é ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.
+- Quando o paciente informar uma data e horário, adicione ao final da sua resposta: AGENDA: DATA:DD/MM/AAAA|HORA:HH:MM
+- NUNCA sugira horários alternativos — isso é tarefa do sistema, não sua.
+- NUNCA confirme nem negue se o horário está disponível — apenas diga "Vou verificar a disponibilidade para você!" e aguarde.
+- Se o paciente pedir um dia ou horário fora do funcionamento (ex: domingo, ou sábado às 15h), informe gentilmente os dias e horários de atendimento e peça que escolha novamente.
+- Se o paciente mencionar apenas uma data sem horário, ou apenas um horário sem data, peça os dois antes de gerar o AGENDA:.`
   } else {
     fase = 'CADASTRO'
     const resumo = dadosColetados.length > 0
