@@ -28,6 +28,10 @@ db.exec(`CREATE TABLE IF NOT EXISTS pacientes (
   nome        TEXT,
   nascimento  TEXT,
   sexo        TEXT,
+  cep         TEXT,
+  logradouro  TEXT,
+  numero      TEXT,
+  complemento TEXT,
   endereco    TEXT,
   plano       TEXT,
   motivo      TEXT,
@@ -53,6 +57,10 @@ const migracoes = [
   "ALTER TABLE pacientes ADD COLUMN agendamento TEXT",
   "ALTER TABLE pacientes ADD COLUMN lembrete_dia TEXT",
   "ALTER TABLE pacientes ADD COLUMN lembrete_2h TEXT",
+  "ALTER TABLE pacientes ADD COLUMN cep TEXT",
+  "ALTER TABLE pacientes ADD COLUMN logradouro TEXT",
+  "ALTER TABLE pacientes ADD COLUMN numero TEXT",
+  "ALTER TABLE pacientes ADD COLUMN complemento TEXT",
 ]
 migracoes.forEach(sql => { try { db.exec(sql) } catch (_) {} })
 
@@ -104,6 +112,27 @@ function parseDatetimeBR(agendamento) {
   const [dia, mes, ano] = data.split('/')
   const [hh, mm] = hora.split(':')
   return new Date(`${ano}-${mes}-${dia}T${hh}:${mm}:00-03:00`)
+}
+
+// ─── CEP ───────────────────────────────────────────────────────────────────────
+
+async function buscarCep(cep) {
+  const cepLimpo = cep.replace(/\D/g, '')
+  if (cepLimpo.length !== 8) return null
+  try {
+    const resp = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+    const data = await resp.json()
+    if (data.erro) return null
+    return {
+      logradouro: data.logradouro,
+      bairro: data.bairro,
+      cidade: data.localidade,
+      uf: data.uf
+    }
+  } catch (err) {
+    console.error('Erro ao buscar CEP:', err.message)
+    return null
+  }
 }
 
 // ─── Google Calendar ───────────────────────────────────────────────────────────
@@ -293,6 +322,10 @@ function salvar(telefone, d) {
       nome        = COALESCE(?, nome),
       nascimento  = COALESCE(?, nascimento),
       sexo        = COALESCE(?, sexo),
+      cep         = COALESCE(?, cep),
+      logradouro  = COALESCE(?, logradouro),
+      numero      = COALESCE(?, numero),
+      complemento = COALESCE(?, complemento),
       endereco    = COALESCE(?, endereco),
       plano       = COALESCE(?, plano),
       motivo      = COALESCE(?, motivo),
@@ -300,14 +333,18 @@ function salvar(telefone, d) {
       agendamento = COALESCE(?, agendamento),
       atualizado  = datetime('now')
       WHERE telefone = ?`)
-      .run(d.nome||null, d.nascimento||null, d.sexo||null, d.endereco||null,
-           d.plano||null, d.motivo||null, d.email||null, d.agendamento||null, telefone)
+      .run(d.nome||null, d.nascimento||null, d.sexo||null,
+           d.cep||null, d.logradouro||null, d.numero||null, d.complemento||null,
+           d.endereco||null, d.plano||null, d.motivo||null,
+           d.email||null, d.agendamento||null, telefone)
   } else {
     db.prepare(`INSERT INTO pacientes
-      (telefone, nome, nascimento, sexo, endereco, plano, motivo, email, agendamento, criado, atualizado)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`)
-      .run(telefone, d.nome||null, d.nascimento||null, d.sexo||null, d.endereco||null,
-           d.plano||null, d.motivo||null, d.email||null, d.agendamento||null)
+      (telefone, nome, nascimento, sexo, cep, logradouro, numero, complemento, endereco, plano, motivo, email, agendamento, criado, atualizado)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`)
+      .run(telefone, d.nome||null, d.nascimento||null, d.sexo||null,
+           d.cep||null, d.logradouro||null, d.numero||null, d.complemento||null,
+           d.endereco||null, d.plano||null, d.motivo||null,
+           d.email||null, d.agendamento||null)
   }
 }
 
@@ -317,28 +354,34 @@ async function perguntarIA(telefone, mensagem) {
   const p = getPaciente(telefone)
   addMsg(telefone, 'user', mensagem)
 
+  // Sub-fase do endereço
+  const enderecoCompleto = p && p.endereco
+  const aguardandoNumero = p && p.logradouro && !p.numero
+  const aguardandoComplemento = p && p.numero && !p.complemento
+
   const dadosColetados = p ? [
-    p.nome       ? `Nome: ${p.nome}`            : null,
-    p.nascimento ? `Nascimento: ${p.nascimento}` : null,
-    p.sexo       ? `Sexo: ${p.sexo}`            : null,
-    p.endereco   ? `Endereço: ${p.endereco}`    : null,
-    p.plano      ? `Plano: ${p.plano}`          : null,
-    p.motivo     ? `Motivo: ${p.motivo}`        : null,
-    p.email      ? `E-mail: ${p.email}`         : null,
+    p.nome        ? `Nome: ${p.nome}`              : null,
+    p.nascimento  ? `Nascimento: ${p.nascimento}`  : null,
+    p.sexo        ? `Sexo: ${p.sexo}`              : null,
+    p.logradouro  ? `Logradouro: ${p.logradouro}`  : null,
+    p.numero      ? `Número: ${p.numero}`          : null,
+    p.complemento ? `Complemento: ${p.complemento}`: null,
+    enderecoCompleto ? `Endereço: ${p.endereco}`   : null,
+    p.plano       ? `Plano: ${p.plano}`            : null,
+    p.motivo      ? `Motivo: ${p.motivo}`          : null,
+    p.email       ? `E-mail: ${p.email}`           : null,
   ].filter(Boolean) : []
 
   const dadosFaltando = p ? [
-    !p.nome       ? 'nome completo'      : null,
-    !p.nascimento ? 'data de nascimento' : null,
-    !p.sexo       ? 'sexo'              : null,
-    !p.endereco   ? 'endereço'          : null,
-    !p.plano      ? 'plano de saúde'    : null,
-    !p.motivo     ? 'motivo da consulta' : null,
-    !p.email      ? 'e-mail'            : null,
+    !p.nome          ? 'nome completo'       : null,
+    !p.nascimento    ? 'data de nascimento'  : null,
+    !p.sexo          ? 'sexo'               : null,
+    !enderecoCompleto ? 'endereço'           : null,
+    !p.plano         ? 'plano de saúde'     : null,
+    !p.motivo        ? 'motivo da consulta'  : null,
+    !p.email         ? 'e-mail'             : null,
   ].filter(Boolean) : ['nome completo','data de nascimento','sexo','endereço','plano de saúde','motivo da consulta','e-mail']
 
-  // Cadastro completo quando todos os campos obrigatórios estão preenchidos
-  // E o e-mail foi abordado (tem valor ou foi recusado = 'nao_informado')
   const cadastroCompleto = dadosFaltando.length === 0
   const jaAgendado = p && p.agendamento
 
@@ -364,29 +407,38 @@ REGRAS RÍGIDAS DESTA FASE:
     const resumo = dadosColetados.length > 0
       ? `Já coletados: ${dadosColetados.join(', ')}.\nAinda faltam: ${dadosFaltando.join(', ')}.`
       : `Nenhum dado coletado ainda.`
+    // Instrução específica para sub-fase do endereço
+    let instrucaoEndereco = ''
+    if (aguardandoNumero) {
+      instrucaoEndereco = `\nSUB-FASE ENDEREÇO: O CEP foi consultado e o logradouro é "${p.logradouro}". Informe isso ao paciente e pergunte o NÚMERO da residência. Quando ele informar, use DADOS: NUM:valor`
+    } else if (aguardandoComplemento) {
+      instrucaoEndereco = `\nSUB-FASE ENDEREÇO: O logradouro é "${p.logradouro}", número "${p.numero}". Pergunte se há complemento (apto, sala, bloco etc). Se sim, use DADOS: COMP:valor. Se não tiver, use DADOS: COMP:nao_tem`
+    }
+
     instrucoesFase = `SITUAÇÃO DO CADASTRO:\n${resumo}
+${instrucaoEndereco}
 
 Colete os dados que FALTAM, um por vez, de forma leve e espontânea. NUNCA peça um dado já coletado.
-O e-mail deve ser perguntado, mas é opcional — se o paciente não tiver ou não quiser informar, aceite com naturalidade e use EMAIL:nao_informado no bloco DADOS.
-Quando TODOS os dados obrigatórios estiverem coletados, envie uma mensagem de confirmação no seguinte formato EXATO:
-Primeiro liste os dados assim:
+ENDEREÇO: Quando chegar a vez de coletar o endereço, peça o CEP. Quando o paciente informar o CEP, use DADOS: CEP:valor
+O e-mail deve ser perguntado, mas é opcional — se o paciente não tiver ou não quiser informar, aceite com naturalidade e use DADOS: EMAIL:nao_informado
+Quando TODOS os dados estiverem coletados, envie uma mensagem de confirmação no seguinte formato EXATO:
 "Perfeito! Deixa eu confirmar seus dados:
 
 • *Nome:* [nome]
 • *Data de nascimento:* [nascimento]
 • *Sexo:* [sexo]
-• *Endereço:* [endereço]
+• *Endereço:* [endereço completo]
 • *Plano de saúde:* [plano]
 • *Motivo da consulta:* [motivo]"
 
 Depois coloque exatamente: |||
 
-Depois escreva numa mensagem separada:
+Depois escreva:
 "Está tudo correto? Responda *Sim* para confirmar ou *Não* para corrigir alguma informação 😊"
 
 Sempre que coletar dados novos, adicione ao final da resposta:
-DADOS: NOME:valor|NASC:valor|SEXO:valor|END:valor|PLANO:valor|MOTIVO:valor|EMAIL:valor
-(inclua apenas os dados coletados NESSA mensagem; se o paciente recusou o e-mail, use EMAIL:nao_informado)`
+DADOS: NOME:valor|NASC:valor|SEXO:valor|CEP:valor|NUM:valor|COMP:valor|PLANO:valor|MOTIVO:valor|EMAIL:valor
+(inclua apenas os campos coletados NESSA mensagem)`
   }
 
   const system = `Você é Ana, recepcionista da Clínica Geral. Você é calorosa, empática e conversa de forma completamente natural — como uma atendente humana real, não um robô.
@@ -421,6 +473,7 @@ Responda sempre em português brasileiro.`
 
   // Extrai e salva dados cadastrais
   const matchDados = texto.match(/DADOS:(.*)/i)
+  let mensagemCep = ''
   if (matchDados) {
     const d = {}
     matchDados[1].split('|').forEach(parte => {
@@ -432,11 +485,36 @@ Responda sempre em português brasileiro.`
       if (k === 'NOME')   d.nome = v
       if (k === 'NASC')   d.nascimento = v
       if (k === 'SEXO')   d.sexo = v
-      if (k === 'END')    d.endereco = v
+      if (k === 'CEP')    d.cep = v
+      if (k === 'NUM')    d.numero = v
+      if (k === 'COMP')   d.complemento = v !== 'nao_tem' ? v : 'nao_tem'
       if (k === 'PLANO')  d.plano = v
       if (k === 'MOTIVO') d.motivo = v
-      if (k === 'EMAIL') d.email = v !== 'nao_informado' ? v : 'nao_informado'
+      if (k === 'EMAIL')  d.email = v
     })
+
+    // Se veio CEP, busca o logradouro automaticamente
+    if (d.cep) {
+      const enderecoCep = await buscarCep(d.cep)
+      if (enderecoCep) {
+        d.logradouro = `${enderecoCep.logradouro}, ${enderecoCep.bairro}, ${enderecoCep.cidade} - ${enderecoCep.uf}`
+        console.log('CEP encontrado:', d.logradouro)
+      } else {
+        mensagemCep = '\n\nNão encontrei esse CEP. Pode verificar e tentar novamente?'
+        delete d.cep
+      }
+    }
+
+    // Monta endereço completo quando tiver logradouro + número
+    const pAtual = getPaciente(telefone)
+    const logradouro = d.logradouro || pAtual?.logradouro
+    const numero = d.numero || pAtual?.numero
+    const complemento = d.complemento || pAtual?.complemento
+    if (logradouro && numero) {
+      const comp = complemento && complemento !== 'nao_tem' ? `, ${complemento}` : ''
+      d.endereco = `${logradouro}, ${numero}${comp}`
+    }
+
     if (Object.keys(d).length > 0) {
       salvar(telefone, d)
       console.log('Dados salvos:', d)
@@ -476,13 +554,13 @@ Responda sempre em português brasileiro.`
   // Se houver separador |||, retorna array com duas mensagens
   if (limpo.includes('|||')) {
     const partes = limpo.split('|||').map(p => p.trim()).filter(p => p.length > 0)
-    const ultima = partes[partes.length - 1] + mensagemExtra
+    const ultima = partes[partes.length - 1] + mensagemExtra + mensagemCep
     partes[partes.length - 1] = ultima
     addMsg(telefone, 'assistant', partes.join(' '))
     return partes
   }
 
-  const resposta = limpo + mensagemExtra
+  const resposta = limpo + mensagemExtra + mensagemCep
   addMsg(telefone, 'assistant', limpo)
   return resposta
 }
