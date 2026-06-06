@@ -878,6 +878,10 @@ app.post('/webhook', async function(req, res) {
   }
 })
 
+app.get('/dashboard', function(req, res) {
+  res.sendFile(__dirname + '/dashboard.html')
+})
+
 app.get('/pacientes', function(req, res) {
   res.json(db.prepare('SELECT * FROM pacientes ORDER BY atualizado DESC').all())
 })

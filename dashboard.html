@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Clínica de Psicologia</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; color: #2d3748; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
+  .header h1 { font-size: 22px; font-weight: 700; }
+  .header p { font-size: 13px; opacity: 0.85; margin-top: 2px; }
+  .header-right { text-align: right; font-size: 13px; opacity: 0.85; }
+
+  /* Nav */
+  .nav { background: white; padding: 0 32px; display: flex; gap: 4px; border-bottom: 1px solid #e2e8f0; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+  .nav button { padding: 14px 20px; border: none; background: none; cursor: pointer; font-size: 14px; color: #64748b; border-bottom: 3px solid transparent; font-weight: 500; transition: all .2s; }
+  .nav button.active, .nav button:hover { color: #4f46e5; border-bottom-color: #4f46e5; }
+
+  /* Sections */
+  .section { display: none; padding: 28px 32px; }
+  .section.active { display: block; }
+
+  /* KPI Cards */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 28px; }
+  .kpi { background: white; border-radius: 16px; padding: 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 5px solid; }
+  .kpi.verde { border-color: #10b981; }
+  .kpi.azul  { border-color: #3b82f6; }
+  .kpi.roxo  { border-color: #8b5cf6; }
+  .kpi.laranja { border-color: #f59e0b; }
+  .kpi.vermelho { border-color: #ef4444; }
+  .kpi-label { font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .kpi-value { font-size: 28px; font-weight: 800; margin: 6px 0 4px; }
+  .kpi-sub { font-size: 12px; color: #64748b; }
+  .kpi-trend { font-size: 12px; font-weight: 600; margin-top: 6px; }
+  .up { color: #10b981; } .down { color: #ef4444; }
+
+  /* Charts */
+  .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 28px; }
+  .chart-card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .chart-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 18px; color: #1e293b; }
+
+  /* Tables */
+  .table-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+  .table-card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .table-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; color: #1e293b; display: flex; justify-content: space-between; align-items: center; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; background: #f8fafc; color: #64748b; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid #e2e8f0; }
+  td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+  tr:last-child td { border: none; }
+  tr:hover td { background: #f8fafc; }
+
+  /* Badge */
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: #d1fae5; color: #065f46; }
+  .badge-blue  { background: #dbeafe; color: #1e40af; }
+  .badge-red   { background: #fee2e2; color: #991b1b; }
+  .badge-yellow { background: #fef3c7; color: #92400e; }
+  .badge-purple { background: #ede9fe; color: #5b21b6; }
+
+  /* Btn */
+  .btn { padding: 7px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all .2s; }
+  .btn-green { background: #10b981; color: white; } .btn-green:hover { background: #059669; }
+  .btn-red   { background: #ef4444; color: white; } .btn-red:hover   { background: #dc2626; }
+  .btn-primary { background: #4f46e5; color: white; } .btn-primary:hover { background: #4338ca; }
+
+  /* DRE */
+  .dre-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+  .dre-card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .dre-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; color: #1e293b; }
+  .dre-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+  .dre-row:last-child { border: none; }
+  .dre-total { display: flex; justify-content: space-between; padding: 14px 0 0; font-weight: 800; font-size: 16px; border-top: 2px solid #e2e8f0; margin-top: 8px; }
+  .dre-resultado { background: linear-gradient(135deg, #10b981, #059669); color: white; border-radius: 12px; padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
+  .dre-resultado span { font-size: 14px; opacity: .9; }
+  .dre-resultado strong { font-size: 28px; font-weight: 800; }
+
+  /* Form despesa */
+  .form-despesa { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; }
+  .form-despesa h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr 2fr 1fr auto; gap: 12px; align-items: end; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 12px; font-weight: 600; color: #64748b; }
+  .form-group input, .form-group select { padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; }
+  .form-group input:focus, .form-group select:focus { border-color: #4f46e5; }
+
+  /* Pacientes */
+  .search-bar { display: flex; gap: 12px; margin-bottom: 20px; }
+  .search-bar input { flex: 1; padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; outline: none; }
+  .search-bar input:focus { border-color: #4f46e5; }
+
+  /* Aniversariantes */
+  .aniv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .aniv-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); text-align: center; border-top: 4px solid #f59e0b; }
+  .aniv-emoji { font-size: 36px; margin-bottom: 8px; }
+  .aniv-nome { font-weight: 700; font-size: 15px; margin-bottom: 4px; }
+  .aniv-data { font-size: 13px; color: #64748b; margin-bottom: 12px; }
+
+  /* Senha */
+  .login-overlay { position: fixed; inset: 0; background: linear-gradient(135deg, #4f46e5, #7c3aed); display: flex; align-items: center; justify-content: center; z-index: 999; }
+  .login-box { background: white; border-radius: 24px; padding: 48px; width: 380px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  .login-box h2 { font-size: 22px; font-weight: 800; margin-bottom: 8px; color: #1e293b; }
+  .login-box p { color: #64748b; font-size: 14px; margin-bottom: 28px; }
+  .login-box input { width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 15px; text-align: center; letter-spacing: 4px; outline: none; margin-bottom: 16px; }
+  .login-box input:focus { border-color: #4f46e5; }
+  .login-box button { width: 100%; padding: 13px; background: #4f46e5; color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .login-erro { color: #ef4444; font-size: 13px; margin-top: 10px; display: none; }
+
+  /* Month selector */
+  .month-selector { display: flex; gap: 10px; align-items: center; margin-bottom: 24px; }
+  .month-selector select { padding: 8px 14px; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; outline: none; }
+  .month-selector label { font-size: 14px; font-weight: 600; color: #64748b; }
+
+  @media(max-width:768px) {
+    .charts-grid, .table-grid, .dre-grid { grid-template-columns: 1fr; }
+    .form-row { grid-template-columns: 1fr 1fr; }
+    .section { padding: 20px 16px; }
+    .header { padding: 16px; }
+    .nav { padding: 0 16px; overflow-x: auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div style="font-size:48px;margin-bottom:16px">🧠</div>
+    <h2>Dashboard Clínica</h2>
+    <p>Digite a senha para acessar o painel</p>
+    <input type="password" id="senhaInput" placeholder="••••••" onkeydown="if(event.key==='Enter')login()">
+    <button onclick="login()">Entrar</button>
+    <div class="login-erro" id="loginErro">Senha incorreta. Tente novamente.</div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div>
+    <h1>🧠 Clínica de Psicologia JF</h1>
+    <p>Painel de Gestão Completo</p>
+  </div>
+  <div class="header-right">
+    <div id="dataAtual"></div>
+    <div style="margin-top:4px">Ana — Recepcionista Virtual ✨</div>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav">
+  <button class="active" onclick="showSection('visao')">📊 Visão Geral</button>
+  <button onclick="showSection('consultas')">📅 Consultas</button>
+  <button onclick="showSection('pacientes')">👥 Pacientes</button>
+  <button onclick="showSection('financeiro')">💰 Financeiro</button>
+  <button onclick="showSection('aniversarios')">🎂 Aniversários</button>
+</div>
+
+<!-- ═══════════════════ VISÃO GERAL ═══════════════════ -->
+<div class="section active" id="visao">
+  <div class="kpi-grid">
+    <div class="kpi verde">
+      <div class="kpi-label">Faturamento Junho</div>
+      <div class="kpi-value">R$ 19.450</div>
+      <div class="kpi-sub">118 consultas realizadas</div>
+      <div class="kpi-trend up">↑ 8% vs maio</div>
+    </div>
+    <div class="kpi azul">
+      <div class="kpi-label">Consultas este mês</div>
+      <div class="kpi-value">118</div>
+      <div class="kpi-sub">Meta: 120 consultas</div>
+      <div class="kpi-trend up">↑ 98% da meta</div>
+    </div>
+    <div class="kpi roxo">
+      <div class="kpi-label">Pacientes ativos</div>
+      <div class="kpi-value">87</div>
+      <div class="kpi-sub">+6 novos em junho</div>
+      <div class="kpi-trend up">↑ 7% vs maio</div>
+    </div>
+    <div class="kpi laranja">
+      <div class="kpi-label">Ticket Médio</div>
+      <div class="kpi-value">R$ 164,83</div>
+      <div class="kpi-sub">Particular + Convênios</div>
+      <div class="kpi-trend up">↑ 3% vs maio</div>
+    </div>
+    <div class="kpi vermelho">
+      <div class="kpi-label">Turn Over</div>
+      <div class="kpi-value">4,6%</div>
+      <div class="kpi-sub">4 cancelamentos no mês</div>
+      <div class="kpi-trend up">↓ 2% vs maio</div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>📈 Faturamento vs Despesas — 12 Meses</h3>
+      <canvas id="chartFaturamento" height="100"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>🥧 Mix de Pagamentos</h3>
+      <canvas id="chartMix" height="200"></canvas>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h3>📊 Consultas por Mês</h3>
+      <canvas id="chartConsultas" height="100"></canvas>
+    </div>
+    <div class="chart-card">
+      <h3>👥 Evolução de Pacientes</h3>
+      <canvas id="chartPacientes" height="200"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ CONSULTAS ═══════════════════ -->
+<div class="section" id="consultas">
+  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="kpi azul"><div class="kpi-label">Próximos 7 dias</div><div class="kpi-value">24</div><div class="kpi-sub">consultas agendadas</div></div>
+    <div class="kpi verde"><div class="kpi-label">Hoje</div><div class="kpi-value">8</div><div class="kpi-sub">consultas</div></div>
+    <div class="kpi vermelho"><div class="kpi-label">Canceladas este mês</div><div class="kpi-value">4</div><div class="kpi-sub">turn over 4,6%</div></div>
+    <div class="kpi laranja"><div class="kpi-label">Lista de espera</div><div class="kpi-value">12</div><div class="kpi-sub">pacientes aguardando</div></div>
+  </div>
+
+  <div class="table-card" style="margin-bottom:20px">
+    <h3>📅 Próximas Consultas <span class="badge badge-blue">Hoje — 06/06/2026</span></h3>
+    <table>
+      <tr><th>Horário</th><th>Paciente</th><th>Convênio</th><th>Valor</th><th>Status</th><th>Ação</th></tr>
+      <tr><td>08:00</td><td>Ana Paula Ferreira</td><td>Particular</td><td>R$ 220,00</td><td><span class="badge badge-blue">Confirmada</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Ana Paula Ferreira','220,00')">✓ Pago</button></td></tr>
+      <tr><td>09:00</td><td>Carlos Eduardo Lima</td><td>Unimed</td><td>R$ 145,00</td><td><span class="badge badge-blue">Confirmada</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Carlos Eduardo Lima','145,00')">✓ Pago</button></td></tr>
+      <tr><td>10:00</td><td>Fernanda Costa</td><td>Bradesco</td><td>R$ 160,00</td><td><span class="badge badge-yellow">Aguardando</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Fernanda Costa','160,00')">✓ Pago</button></td></tr>
+      <tr><td>11:00</td><td>Roberto Alves</td><td>Particular</td><td>R$ 220,00</td><td><span class="badge badge-blue">Confirmada</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Roberto Alves','220,00')">✓ Pago</button></td></tr>
+      <tr><td>14:00</td><td>Juliana Mendes</td><td>Amil</td><td>R$ 140,00</td><td><span class="badge badge-blue">Confirmada</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Juliana Mendes','140,00')">✓ Pago</button></td></tr>
+      <tr><td>15:00</td><td>Marcos Souza</td><td>Particular</td><td>R$ 220,00</td><td><span class="badge badge-yellow">Aguardando</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Marcos Souza','220,00')">✓ Pago</button></td></tr>
+      <tr><td>16:00</td><td>Patrícia Oliveira</td><td>BB Saúde</td><td>R$ 130,00</td><td><span class="badge badge-blue">Confirmada</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Patrícia Oliveira','130,00')">✓ Pago</button></td></tr>
+      <tr><td>17:00</td><td>Diego Martins</td><td>Particular</td><td>R$ 220,00</td><td><span class="badge badge-blue">Confirmada</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Diego Martins','220,00')">✓ Pago</button></td></tr>
+    </table>
+  </div>
+
+  <div class="table-card">
+    <h3>❌ Consultas Canceladas — Junho 2026</h3>
+    <table>
+      <tr><th>Data</th><th>Paciente</th><th>Convênio</th><th>Motivo</th><th>Status</th></tr>
+      <tr><td>02/06</td><td>Luciana Ramos</td><td>Unimed</td><td>Imprevisto pessoal</td><td><span class="badge badge-red">Cancelada</span></td></tr>
+      <tr><td>04/06</td><td>André Pereira</td><td>Particular</td><td>Viagem</td><td><span class="badge badge-red">Cancelada</span></td></tr>
+      <tr><td>05/06</td><td>Camila Torres</td><td>Bradesco</td><td>Doença</td><td><span class="badge badge-yellow">Reagendada</span></td></tr>
+      <tr><td>05/06</td><td>Felipe Gomes</td><td>Particular</td><td>Não informou</td><td><span class="badge badge-red">Cancelada</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════ PACIENTES ═══════════════════ -->
+<div class="section" id="pacientes">
+  <div class="search-bar">
+    <input type="text" id="buscaPaciente" placeholder="🔍 Buscar paciente por nome, CPF ou telefone..." oninput="filtrarPacientes()">
+    <button class="btn btn-primary">+ Novo Paciente</button>
+  </div>
+  <div class="table-card">
+    <h3>👥 Cadastro de Pacientes <span class="badge badge-blue" id="totalPacientes">87 pacientes</span></h3>
+    <table>
+      <tr><th>Nome</th><th>CPF</th><th>Nascimento</th><th>Telefone</th><th>Convênio</th><th>Próx. Consulta</th><th>Status</th></tr>
+      <tbody id="tabelaPacientes"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════ FINANCEIRO ═══════════════════ -->
+<div class="section" id="financeiro">
+  <div class="month-selector">
+    <label>Mês de referência:</label>
+    <select onchange="atualizarDRE(this.value)">
+      <option value="6">Junho 2026</option>
+      <option value="5">Maio 2026</option>
+      <option value="4">Abril 2026</option>
+      <option value="3">Março 2026</option>
+      <option value="2">Fevereiro 2026</option>
+      <option value="1">Janeiro 2026</option>
+    </select>
+  </div>
+
+  <div class="form-despesa">
+    <h3>➕ Lançar Despesa</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Data</label>
+        <input type="date" id="despData" value="2026-06-06">
+      </div>
+      <div class="form-group">
+        <label>Categoria</label>
+        <select id="despCategoria">
+          <option>Aluguel</option>
+          <option>Materiais</option>
+          <option>Cursos/Supervisão</option>
+          <option>Marketing</option>
+          <option>Contabilidade</option>
+          <option>CRP (Anuidade)</option>
+          <option>Outros</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Descrição</label>
+        <input type="text" id="despDescricao" placeholder="Ex: Aluguel sala junho">
+      </div>
+      <div class="form-group">
+        <label>Valor (R$)</label>
+        <input type="number" id="despValor" placeholder="0,00">
+      </div>
+      <button class="btn btn-primary" onclick="lancarDespesa()">Lançar</button>
+    </div>
+  </div>
+
+  <div class="dre-grid">
+    <div class="dre-card">
+      <h3>💰 Receitas — Junho 2026</h3>
+      <div class="dre-row"><span>Particular (52 consultas)</span><span style="color:#10b981;font-weight:700">R$ 11.440,00</span></div>
+      <div class="dre-row"><span>Unimed (28 consultas)</span><span style="color:#10b981;font-weight:700">R$ 4.060,00</span></div>
+      <div class="dre-row"><span>Bradesco (18 consultas)</span><span style="color:#10b981;font-weight:700">R$ 2.880,00</span></div>
+      <div class="dre-row"><span>Amil (12 consultas)</span><span style="color:#10b981;font-weight:700">R$ 1.680,00</span></div>
+      <div class="dre-row"><span>BB Saúde (8 consultas)</span><span style="color:#10b981;font-weight:700">R$ 1.040,00</span></div>
+      <div class="dre-row"><span>A receber (convênios)</span><span style="color:#f59e0b;font-weight:700">R$ 5.840,00</span></div>
+      <div class="dre-total"><span>Total Bruto</span><span style="color:#10b981">R$ 21.100,00</span></div>
+    </div>
+
+    <div class="dre-card">
+      <h3>💸 Despesas — Junho 2026</h3>
+      <div id="listaDespesas">
+        <div class="dre-row"><span>Aluguel sala</span><span style="color:#ef4444">R$ 2.200,00</span></div>
+        <div class="dre-row"><span>Contabilidade</span><span style="color:#ef4444">R$ 320,00</span></div>
+        <div class="dre-row"><span>CRP (anuidade)</span><span style="color:#ef4444">R$ 110,00</span></div>
+        <div class="dre-row"><span>Supervisão clínica</span><span style="color:#ef4444">R$ 480,00</span></div>
+        <div class="dre-row"><span>Marketing</span><span style="color:#ef4444">R$ 350,00</span></div>
+        <div class="dre-row"><span>Materiais</span><span style="color:#ef4444">R$ 190,00</span></div>
+      </div>
+      <div class="dre-total"><span>Total Despesas</span><span id="totalDespesas" style="color:#ef4444">R$ 3.650,00</span></div>
+    </div>
+  </div>
+
+  <div class="dre-resultado">
+    <div><span>💎 Resultado Líquido — Junho 2026</span></div>
+    <div style="text-align:right"><span id="resultadoLabel">Lucro do mês</span><br><strong id="resultadoValor">R$ 15.800,00</strong></div>
+  </div>
+
+  <div class="chart-card" style="margin-top:20px">
+    <h3>📊 DRE Anual — Receita vs Despesa vs Lucro</h3>
+    <canvas id="chartDRE" height="80"></canvas>
+  </div>
+</div>
+
+<!-- ═══════════════════ ANIVERSÁRIOS ═══════════════════ -->
+<div class="section" id="aniversarios">
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:28px">
+    <div class="kpi laranja"><div class="kpi-label">Aniversários em Junho</div><div class="kpi-value">8</div><div class="kpi-sub">pacientes fazem aniversário</div></div>
+    <div class="kpi verde"><div class="kpi-label">Mensagens enviadas</div><div class="kpi-value">5</div><div class="kpi-sub">enviadas automaticamente</div></div>
+    <div class="kpi azul"><div class="kpi-label">Pendentes hoje</div><div class="kpi-value">1</div><div class="kpi-sub">06/06 — Diego Martins</div></div>
+  </div>
+
+  <div class="aniv-grid" id="anivGrid"></div>
+</div>
+
+<script>
+// ─── SENHA ───────────────────────────────────────────
+const SENHA = '1234'
+function login() {
+  if (document.getElementById('senhaInput').value === SENHA) {
+    document.getElementById('loginOverlay').style.display = 'none'
+    inicializar()
+  } else {
+    document.getElementById('loginErro').style.display = 'block'
+  }
+}
+
+// ─── DATA ────────────────────────────────────────────
+document.getElementById('dataAtual').textContent =
+  new Date().toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'long', year:'numeric' })
+
+// ─── NAV ─────────────────────────────────────────────
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'))
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'))
+  document.getElementById(id).classList.add('active')
+  event.target.classList.add('active')
+}
+
+// ─── DADOS MOCK ──────────────────────────────────────
+const meses = ['Jul/25','Ago/25','Set/25','Out/25','Nov/25','Dez/25','Jan/26','Fev/26','Mar/26','Abr/26','Mai/26','Jun/26']
+const receitas  = [16200, 17800, 18400, 19100, 17600, 12800, 15400, 16900, 18200, 18800, 18000, 19450]
+const despesas  = [3200,  3400,  3350,  3600,  3500,  3100,  3300,  3450,  3550,  3600,  3580,  3650]
+const lucros    = receitas.map((r,i) => r - despesas[i])
+const consultas = [98, 108, 112, 116, 107, 78, 94, 103, 110, 114, 109, 118]
+const pacientes_ativos = [68, 72, 74, 78, 76, 71, 73, 77, 80, 83, 81, 87]
+
+const pacientesMock = [
+  { nome:'Ana Paula Ferreira', cpf:'123.456.789-01', nasc:'15/03/1988', tel:'(32) 99812-3456', plano:'Particular', proxima:'06/06/2026', status:'ativo' },
+  { nome:'Carlos Eduardo Lima', cpf:'234.567.890-12', nasc:'22/07/1975', tel:'(32) 99823-4567', plano:'Unimed', proxima:'06/06/2026', status:'ativo' },
+  { nome:'Fernanda Costa', cpf:'345.678.901-23', nasc:'08/11/1992', tel:'(32) 99834-5678', plano:'Bradesco', proxima:'06/06/2026', status:'ativo' },
+  { nome:'Roberto Alves', cpf:'456.789.012-34', nasc:'30/01/1980', tel:'(32) 99845-6789', plano:'Particular', proxima:'06/06/2026', status:'ativo' },
+  { nome:'Juliana Mendes', cpf:'567.890.123-45', nasc:'14/09/1995', tel:'(32) 99856-7890', plano:'Amil', proxima:'06/06/2026', status:'ativo' },
+  { nome:'Marcos Souza', cpf:'678.901.234-56', nasc:'06/06/1990', tel:'(32) 99867-8901', plano:'Particular', proxima:'06/06/2026', status:'ativo' },
+  { nome:'Patrícia Oliveira', cpf:'789.012.345-67', nasc:'25/04/1983', tel:'(32) 99878-9012', plano:'BB Saúde', proxima:'06/06/2026', status:'ativo' },
+  { nome:'Diego Martins', cpf:'890.123.456-78', nasc:'06/06/1987', tel:'(32) 99889-0123', plano:'Particular', proxima:'06/06/2026', status:'ativo' },
+  { nome:'Luciana Ramos', cpf:'901.234.567-89', nasc:'18/12/1978', tel:'(32) 99890-1234', plano:'Unimed', proxima:'—', status:'cancelado' },
+  { nome:'André Pereira', cpf:'012.345.678-90', nasc:'03/05/1985', tel:'(32) 99801-2345', plano:'Particular', proxima:'13/06/2026', status:'ativo' },
+  { nome:'Camila Torres', cpf:'111.222.333-44', nasc:'20/08/1993', tel:'(32) 99812-3456', plano:'Bradesco', proxima:'09/06/2026', status:'ativo' },
+  { nome:'Felipe Gomes', cpf:'222.333.444-55', nasc:'11/02/1982', tel:'(32) 99823-4567', plano:'Particular', proxima:'—', status:'cancelado' },
+  { nome:'Beatriz Santos', cpf:'333.444.555-66', nasc:'29/06/1997', tel:'(32) 99834-5678', plano:'Amil', proxima:'10/06/2026', status:'ativo' },
+  { nome:'Rodrigo Carvalho', cpf:'444.555.666-77', nasc:'17/10/1971', tel:'(32) 99845-6789', plano:'Particular', proxima:'11/06/2026', status:'ativo' },
+  { nome:'Isabela Nunes', cpf:'555.666.777-88', nasc:'06/06/2001', tel:'(32) 99856-7890', plano:'Unimed', proxima:'12/06/2026', status:'ativo' },
+]
+
+const aniversariantes = [
+  { nome:'Marcos Souza', data:'06/06', diasRestantes:0, enviado:false },
+  { nome:'Diego Martins', data:'06/06', diasRestantes:0, enviado:false },
+  { nome:'Isabela Nunes', data:'06/06', diasRestantes:0, enviado:true },
+  { nome:'Carla Freitas', data:'08/06', diasRestantes:2, enviado:false },
+  { nome:'Paulo Henrique', data:'12/06', diasRestantes:6, enviado:false },
+  { nome:'Marina Vieira', data:'18/06', diasRestantes:12, enviado:true },
+  { nome:'Thiago Baptista', data:'22/06', diasRestantes:16, enviado:false },
+  { nome:'Renata Campos', data:'28/06', diasRestantes:22, enviado:true },
+]
+
+// ─── INICIALIZAR ─────────────────────────────────────
+function inicializar() {
+  renderCharts()
+  renderPacientes(pacientesMock)
+  renderAniversarios()
+}
+
+// ─── CHARTS ──────────────────────────────────────────
+function renderCharts() {
+  const cfg = { responsive: true, plugins: { legend: { position:'top' } } }
+
+  new Chart(document.getElementById('chartFaturamento'), {
+    type: 'bar',
+    data: {
+      labels: meses,
+      datasets: [
+        { label:'Receita', data: receitas, backgroundColor:'rgba(79,70,229,0.7)', borderRadius:6 },
+        { label:'Despesas', data: despesas, backgroundColor:'rgba(239,68,68,0.7)', borderRadius:6 },
+        { label:'Lucro', data: lucros, backgroundColor:'rgba(16,185,129,0.7)', borderRadius:6 },
+      ]
+    },
+    options: { ...cfg, scales: { y: { ticks: { callback: v => 'R$'+v.toLocaleString('pt-BR') } } } }
+  })
+
+  new Chart(document.getElementById('chartMix'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Particular','Unimed','Bradesco','Amil','BB Saúde'],
+      datasets: [{ data:[44,24,15,10,7], backgroundColor:['#4f46e5','#10b981','#3b82f6','#f59e0b','#8b5cf6'] }]
+    },
+    options: { ...cfg, plugins: { legend: { position:'bottom' } } }
+  })
+
+  new Chart(document.getElementById('chartConsultas'), {
+    type: 'line',
+    data: {
+      labels: meses,
+      datasets: [{ label:'Consultas', data: consultas, borderColor:'#4f46e5', backgroundColor:'rgba(79,70,229,0.1)', fill:true, tension:0.4, pointRadius:4 }]
+    },
+    options: cfg
+  })
+
+  new Chart(document.getElementById('chartPacientes'), {
+    type: 'line',
+    data: {
+      labels: meses,
+      datasets: [{ label:'Pacientes Ativos', data: pacientes_ativos, borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.1)', fill:true, tension:0.4, pointRadius:4 }]
+    },
+    options: cfg
+  })
+
+  new Chart(document.getElementById('chartDRE'), {
+    type: 'bar',
+    data: {
+      labels: meses,
+      datasets: [
+        { label:'Receita', data: receitas, backgroundColor:'rgba(79,70,229,0.7)', borderRadius:6 },
+        { label:'Despesas', data: despesas, backgroundColor:'rgba(239,68,68,0.7)', borderRadius:6 },
+        { label:'Lucro Líquido', data: lucros, type:'line', borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.1)', fill:true, tension:0.4, yAxisID:'y' }
+      ]
+    },
+    options: { ...cfg, scales: { y: { ticks: { callback: v => 'R$'+v.toLocaleString('pt-BR') } } } }
+  })
+}
+
+// ─── PACIENTES ───────────────────────────────────────
+function renderPacientes(lista) {
+  const tbody = document.getElementById('tabelaPacientes')
+  tbody.innerHTML = lista.map(p => `
+    <tr>
+      <td><strong>${p.nome}</strong></td>
+      <td>${p.cpf}</td>
+      <td>${p.nasc}</td>
+      <td>${p.tel}</td>
+      <td><span class="badge badge-purple">${p.plano}</span></td>
+      <td>${p.proxima}</td>
+      <td><span class="badge ${p.status==='ativo'?'badge-green':'badge-red'}">${p.status==='ativo'?'Ativo':'Inativo'}</span></td>
+    </tr>`).join('')
+  document.getElementById('totalPacientes').textContent = lista.length + ' pacientes'
+}
+
+function filtrarPacientes() {
+  const q = document.getElementById('buscaPaciente').value.toLowerCase()
+  renderPacientes(pacientesMock.filter(p =>
+    p.nome.toLowerCase().includes(q) || p.cpf.includes(q) || p.tel.includes(q)
+  ))
+}
+
+// ─── ANIVERSÁRIOS ────────────────────────────────────
+function renderAniversarios() {
+  document.getElementById('anivGrid').innerHTML = aniversariantes.map(a => `
+    <div class="aniv-card">
+      <div class="aniv-emoji">${a.diasRestantes === 0 ? '🎂' : '🎁'}</div>
+      <div class="aniv-nome">${a.nome}</div>
+      <div class="aniv-data">📅 ${a.data} ${a.diasRestantes === 0 ? '— <strong>HOJE!</strong>' : '— em '+a.diasRestantes+' dias'}</div>
+      ${a.enviado
+        ? `<span class="badge badge-green">✓ Mensagem enviada</span>`
+        : `<button class="btn btn-primary" onclick="enviarAniversario('${a.nome}',this)">🎉 Enviar WhatsApp</button>`
+      }
+    </div>`).join('')
+}
+
+function enviarAniversario(nome, btn) {
+  btn.textContent = '✓ Enviado!'
+  btn.disabled = true
+  btn.style.background = '#10b981'
+  alert(`Mensagem de aniversário enviada para ${nome}! 🎂`)
+}
+
+// ─── CONFIRMAR PAGAMENTO ─────────────────────────────
+function confirmarPag(btn, nome, valor) {
+  if (!confirm(`Confirmar pagamento de R$ ${valor} de ${nome}?`)) return
+  btn.textContent = '✓ Confirmado'
+  btn.disabled = true
+  btn.style.background = '#6b7280'
+  btn.parentElement.previousElementSibling.innerHTML = '<span class="badge badge-green">Pago</span>'
+}
+
+// ─── DESPESAS ────────────────────────────────────────
+let totalDesp = 3650
+function lancarDespesa() {
+  const data = document.getElementById('despData').value
+  const cat  = document.getElementById('despCategoria').value
+  const desc = document.getElementById('despDescricao').value
+  const val  = parseFloat(document.getElementById('despValor').value)
+  if (!desc || !val) return alert('Preencha descrição e valor!')
+  totalDesp += val
+  const div = document.createElement('div')
+  div.className = 'dre-row'
+  div.innerHTML = `<span>${cat} — ${desc}</span><span style="color:#ef4444">R$ ${val.toFixed(2).replace('.',',')}</span>`
+  document.getElementById('listaDespesas').appendChild(div)
+  document.getElementById('totalDespesas').textContent = 'R$ ' + totalDesp.toLocaleString('pt-BR', {minimumFractionDigits:2})
+  document.getElementById('resultadoValor').textContent = 'R$ ' + (21100 - totalDesp).toLocaleString('pt-BR', {minimumFractionDigits:2})
+  document.getElementById('despDescricao').value = ''
+  document.getElementById('despValor').value = ''
+}
+
+function atualizarDRE(mes) { /* integrar com API futuramente */ }
+</script>
+</body>
+</html>
