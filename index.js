@@ -460,7 +460,9 @@ async function perguntarIA(telefone, mensagem) {
 
   if (jaAgendado && statusAtual === 'cancelado') {
     fase = 'CANCELADO'
-    instrucoesFase = `A consulta do paciente foi cancelada. Se ele quiser reagendar, pergunte nova data e horário e use o mesmo fluxo de AGENDAMENTO (AGENDA: DATA:DD/MM/AAAA|HORA:HH:MM).
+    instrucoesFase = `A consulta do paciente foi cancelada. Se ele quiser reagendar, pergunte nova data e horário.
+Quando o paciente informar data e horário, adicione: AGENDA: DATA:DD/MM/AAAA|HORA:HH:MM
+NUNCA confirme que a consulta foi marcada — apenas diga "Vou verificar a disponibilidade para você!" e aguarde.
 Horário de funcionamento: segunda a sexta das 08h às 18h, sábado das 08h às 12h, domingo fechado.
 Hoje é ${diaSemanaHoje()}, ${dataHoje()}.`
   } else if (jaAgendado) {
@@ -479,10 +481,10 @@ REGRAS RÍGIDAS DESTA FASE:
 - Hoje é ${new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.
 - Quando o paciente informar uma data e horário, adicione ao final da sua resposta: AGENDA: DATA:DD/MM/AAAA|HORA:HH:MM
 - NUNCA sugira horários alternativos — isso é tarefa do sistema, não sua.
-- NUNCA confirme nem negue se o horário está disponível — apenas diga "Vou verificar a disponibilidade para você!" e aguarde.
+- NUNCA diga que a consulta foi marcada, confirmada, agendada ou qualquer variação disso — APENAS diga "Vou verificar a disponibilidade para você!" e aguarde. A confirmação é feita EXCLUSIVAMENTE pelo sistema.
 - Se o paciente pedir um dia ou horário fora do funcionamento (ex: domingo, ou sábado às 15h), informe gentilmente os dias e horários de atendimento e peça que escolha novamente.
 - Se o paciente mencionar apenas uma data sem horário, ou apenas um horário sem data, peça os dois antes de gerar o AGENDA:.
-- ATENÇÃO com os dias da semana: hoje é ${diaSemanaHoje()}, ${dataHoje()}. Use isso como referência para calcular "amanhã", "segunda", "terça" etc. com precisão.`
+- ATENÇÃO com os dias da semana: hoje é ${diaSemanaHoje()}, ${dataHoje()}. Converta sempre expressões como "próxima segunda" para a data real no formato DD/MM/AAAA.`
   } else {
     fase = 'CADASTRO'
     const resumo = dadosColetados.length > 0
