@@ -344,6 +344,22 @@ REGRAS RÍGIDAS DESTA FASE:
 
 Colete os dados que FALTAM, um por vez, de forma leve e espontânea. NUNCA peça um dado já coletado.
 O e-mail é opcional — se o paciente disser que não tem ou não quiser informar, aceite e siga em frente.
+Quando TODOS os dados obrigatórios estiverem coletados, envie uma mensagem de confirmação no seguinte formato EXATO:
+Primeiro liste os dados assim:
+"Perfeito! Deixa eu confirmar seus dados:
+
+• *Nome:* [nome]
+• *Data de nascimento:* [nascimento]
+• *Sexo:* [sexo]
+• *Endereço:* [endereço]
+• *Plano de saúde:* [plano]
+• *Motivo da consulta:* [motivo]"
+
+Depois coloque exatamente: |||
+
+Depois escreva numa mensagem separada:
+"Está tudo correto? Responda *Sim* para confirmar ou *Não* para corrigir alguma informação 😊"
+
 Sempre que coletar dados novos, adicione ao final da resposta:
 DADOS: NOME:valor|NASC:valor|SEXO:valor|END:valor|PLANO:valor|MOTIVO:valor|EMAIL:valor
 (inclua apenas os dados coletados NESSA mensagem; se o paciente recusou o e-mail, use EMAIL:nao_informado)`
@@ -432,8 +448,17 @@ Responda sempre em português brasileiro.`
 
   // Remove blocos internos antes de enviar ao paciente
   const limpo = texto.replace(/\n?DADOS:.*$/im, '').replace(/\n?AGENDA:.*$/im, '').trim()
-  const resposta = limpo + mensagemExtra
 
+  // Se houver separador |||, retorna array com duas mensagens
+  if (limpo.includes('|||')) {
+    const partes = limpo.split('|||').map(p => p.trim()).filter(p => p.length > 0)
+    const ultima = partes[partes.length - 1] + mensagemExtra
+    partes[partes.length - 1] = ultima
+    addMsg(telefone, 'assistant', partes.join(' '))
+    return partes
+  }
+
+  const resposta = limpo + mensagemExtra
   addMsg(telefone, 'assistant', limpo)
   return resposta
 }
@@ -449,7 +474,14 @@ app.post('/webhook', async function(req, res) {
     if (!mensagem || !telefone) return res.status(200).send('ok')
     console.log(`De ${telefone}: ${mensagem}`)
     const resposta = await perguntarIA(telefone, mensagem)
-    await enviar(telefone, resposta)
+    if (Array.isArray(resposta)) {
+      for (const parte of resposta) {
+        await enviar(telefone, parte)
+        await new Promise(r => setTimeout(r, 800)) // pequena pausa entre mensagens
+      }
+    } else {
+      await enviar(telefone, resposta)
+    }
     res.status(200).send('ok')
   } catch (err) {
     console.error('Erro no webhook:', err)
