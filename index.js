@@ -602,22 +602,30 @@ async function perguntarIA(telefone, mensagem) {
 
   const cadastroCompleto = dadosFaltando.length === 0
   const jaAgendado = p && p.agendamento
-  const primeiroContato = !p || dadosColetados.length === 0
+  const primeiroContato = !p
+  const pacienteRecorrente = p && dadosColetados.length > 0 && !cadastroCompleto
 
   let fase, instrucoesFase
   const statusAtual = p?.status || 'ativo'
 
   if (primeiroContato) {
     fase = 'RECEPCAO'
-    instrucoesFase = `É o primeiro contato deste paciente. Cumprimente-o de forma calorosa e apresente-se.
+    instrucoesFase = `É o primeiro contato deste número. Você JÁ CONSULTOU a lista de pacientes e confirmou que este número NÃO está cadastrado — ou seja, é um paciente NOVO.
+Cumprimente-o de forma calorosa, apresente-se e trate-o como alguém que está chegando pela primeira vez.
 
 REGRAS DESTA FASE:
-- NUNCA pergunte se é a primeira vez ou se já foi atendido — isso é desnecessário e invasivo
+- NUNCA pergunte se é a primeira vez — você já sabe que é
 - Pergunte apenas: "Como posso te ajudar hoje?" e espere a resposta
-- Se o paciente tiver dúvidas sobre a clínica, responda naturalmente usando as informações disponíveis
-- Se o paciente demonstrar interesse em agendar (ex: "quero marcar", "quero agendar", "quero uma consulta"), aí sim diga que vai precisar de alguns dados e inicie o cadastro
-- Se a resposta for vaga (ex: "primeira", "quero atendimento", "vim me consultar"), pergunte gentilmente: "Você gostaria de agendar uma consulta ou tem alguma dúvida que posso esclarecer?"
-- Somente inicie o cadastro quando o paciente confirmar claramente que quer agendar`
+- Se o paciente tiver dúvidas, responda usando as informações da clínica
+- Se a resposta for vaga (ex: "quero atendimento", "vim me consultar"), pergunte: "Você gostaria de agendar uma consulta ou tem alguma dúvida que posso esclarecer?"
+- Se demonstrar interesse em agendar, diga que vai precisar de alguns dados e inicie o cadastro
+- Somente inicie o cadastro quando o paciente confirmar que quer agendar`
+  } else if (pacienteRecorrente) {
+    fase = 'RETORNO'
+    instrucoesFase = `Este paciente já está cadastrado no sistema${p.nome ? ` como ${p.nome}` : ''}. Você JÁ SABE que ele é um paciente conhecido.
+Cumprimente-o pelo nome de forma calorosa e natural, como se fosse um retorno esperado.
+Pergunte como pode ajudá-lo hoje sem pedir dados que já foram informados.
+Se quiser agendar, siga o fluxo de agendamento normalmente.`
   } else if (jaAgendado && statusAtual === 'cancelado') {
     fase = 'CANCELADO'
     instrucoesFase = `A consulta do paciente foi cancelada. Se ele quiser reagendar, pergunte nova data e horário.
