@@ -58,21 +58,31 @@ migracoes.forEach(sql => { try { db.exec(sql) } catch (_) {} })
 
 // ─── Helpers de data ───────────────────────────────────────────────────────────
 
-const DIAS_SEMANA = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado']
+function agoraBrasilia() {
+  // Retorna um objeto Date ajustado para o fuso America/Sao_Paulo (UTC-3)
+  const agora = new Date()
+  const brasiliaStr = agora.toLocaleString('en-CA', { timeZone: 'America/Sao_Paulo', hour12: false })
+  // en-CA retorna formato YYYY-MM-DD, HH:MM:SS
+  return new Date(brasiliaStr.replace(', ', 'T'))
+}
 
 function dataHoje() {
-  return new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+  const d = agoraBrasilia()
+  const dia = String(d.getDate()).padStart(2, '0')
+  const mes = String(d.getMonth() + 1).padStart(2, '0')
+  const ano = d.getFullYear()
+  return `${dia}/${mes}/${ano}`
 }
 
 function diaSemanaHoje() {
-  const dow = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long' })
-  return dow
+  const DIAS = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado']
+  return DIAS[agoraBrasilia().getDay()]
 }
 
 // Retorna o dia da semana (0=Dom, 1=Seg, ..., 6=Sáb) para uma data 'DD/MM/AAAA'
 function diaDaSemana(dataStr) {
   const [dia, mes, ano] = dataStr.split('/')
-  return new Date(`${ano}-${mes}-${dia}T12:00:00`).getDay()
+  return new Date(`${ano}-${mes}-${dia}T12:00:00-03:00`).getDay()
 }
 
 // Retorna os slots de horário disponíveis conforme o dia da semana
