@@ -58,6 +58,17 @@ migracoes.forEach(sql => { try { db.exec(sql) } catch (_) {} })
 
 // ─── Helpers de data ───────────────────────────────────────────────────────────
 
+const DIAS_SEMANA = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado']
+
+function dataHoje() {
+  return new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+}
+
+function diaSemanaHoje() {
+  const dow = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'long' })
+  return dow
+}
+
 // Retorna o dia da semana (0=Dom, 1=Seg, ..., 6=Sáb) para uma data 'DD/MM/AAAA'
 function diaDaSemana(dataStr) {
   const [dia, mes, ano] = dataStr.split('/')
@@ -336,7 +347,8 @@ REGRAS RÍGIDAS DESTA FASE:
 - NUNCA sugira horários alternativos — isso é tarefa do sistema, não sua.
 - NUNCA confirme nem negue se o horário está disponível — apenas diga "Vou verificar a disponibilidade para você!" e aguarde.
 - Se o paciente pedir um dia ou horário fora do funcionamento (ex: domingo, ou sábado às 15h), informe gentilmente os dias e horários de atendimento e peça que escolha novamente.
-- Se o paciente mencionar apenas uma data sem horário, ou apenas um horário sem data, peça os dois antes de gerar o AGENDA:.`
+- Se o paciente mencionar apenas uma data sem horário, ou apenas um horário sem data, peça os dois antes de gerar o AGENDA:.
+- ATENÇÃO com os dias da semana: hoje é ${diaSemanaHoje()}, ${dataHoje()}. Use isso como referência para calcular "amanhã", "segunda", "terça" etc. com precisão.`
   } else {
     fase = 'CADASTRO'
     const resumo = dadosColetados.length > 0
