@@ -228,26 +228,16 @@
   <div class="table-card" style="margin-bottom:20px">
     <h3>📅 Próximas Consultas <span class="badge badge-blue">Hoje — 06/06/2026</span></h3>
     <table>
-      <tr><th>Horário</th><th>Paciente</th><th>Convênio</th><th>Valor</th><th>Status</th><th>Ação</th></tr>
-      <tr><td>08:00</td><td>Ana Paula Ferreira</td><td>Particular</td><td>R$ 220,00</td><td><span class="badge badge-blue">Confirmada</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Ana Paula Ferreira','220,00')">✓ Pago</button></td></tr>
-      <tr><td>09:00</td><td>Carlos Eduardo Lima</td><td>Unimed</td><td>R$ 145,00</td><td><span class="badge badge-blue">Confirmada</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Carlos Eduardo Lima','145,00')">✓ Pago</button></td></tr>
-      <tr><td>10:00</td><td>Fernanda Costa</td><td>Bradesco</td><td>R$ 160,00</td><td><span class="badge badge-yellow">Aguardando</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Fernanda Costa','160,00')">✓ Pago</button></td></tr>
-      <tr><td>11:00</td><td>Roberto Alves</td><td>Particular</td><td>R$ 220,00</td><td><span class="badge badge-blue">Confirmada</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Roberto Alves','220,00')">✓ Pago</button></td></tr>
-      <tr><td>14:00</td><td>Juliana Mendes</td><td>Amil</td><td>R$ 140,00</td><td><span class="badge badge-blue">Confirmada</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Juliana Mendes','140,00')">✓ Pago</button></td></tr>
-      <tr><td>15:00</td><td>Marcos Souza</td><td>Particular</td><td>R$ 220,00</td><td><span class="badge badge-yellow">Aguardando</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Marcos Souza','220,00')">✓ Pago</button></td></tr>
-      <tr><td>16:00</td><td>Patrícia Oliveira</td><td>BB Saúde</td><td>R$ 130,00</td><td><span class="badge badge-blue">Confirmada</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Patrícia Oliveira','130,00')">✓ Pago</button></td></tr>
-      <tr><td>17:00</td><td>Diego Martins</td><td>Particular</td><td>R$ 220,00</td><td><span class="badge badge-blue">Confirmada</span></td><td><button class="btn btn-green" onclick="confirmarPag(this,'Diego Martins','220,00')">✓ Pago</button></td></tr>
+      <thead><tr><th>Horário</th><th>Paciente</th><th>Convênio</th><th>Valor</th><th>Status</th><th>Ação</th></tr></thead>
+      <tbody></tbody>
     </table>
   </div>
 
   <div class="table-card">
-    <h3>❌ Consultas Canceladas — Junho 2026</h3>
+    <h3>❌ Consultas Canceladas — Este Mês</h3>
     <table>
-      <tr><th>Data</th><th>Paciente</th><th>Convênio</th><th>Motivo</th><th>Status</th></tr>
-      <tr><td>02/06</td><td>Luciana Ramos</td><td>Unimed</td><td>Imprevisto pessoal</td><td><span class="badge badge-red">Cancelada</span></td></tr>
-      <tr><td>04/06</td><td>André Pereira</td><td>Particular</td><td>Viagem</td><td><span class="badge badge-red">Cancelada</span></td></tr>
-      <tr><td>05/06</td><td>Camila Torres</td><td>Bradesco</td><td>Doença</td><td><span class="badge badge-yellow">Reagendada</span></td></tr>
-      <tr><td>05/06</td><td>Felipe Gomes</td><td>Particular</td><td>Não informou</td><td><span class="badge badge-red">Cancelada</span></td></tr>
+      <thead><tr><th>Data</th><th>Paciente</th><th>Convênio</th><th>Motivo</th><th>Status</th></tr></thead>
+      <tbody></tbody>
     </table>
   </div>
 </div>
@@ -384,7 +374,10 @@ function showSection(id) {
   event.target.classList.add('active')
 }
 
-// ─── DADOS MOCK ──────────────────────────────────────
+// ─── DADOS ───────────────────────────────────────────
+let pacientesReais = []
+
+// ─── DADOS MOCK (fallback) ────────────────────────────
 const meses = ['Jul/25','Ago/25','Set/25','Out/25','Nov/25','Dez/25','Jan/26','Fev/26','Mar/26','Abr/26','Mai/26','Jun/26']
 const receitas  = [16200, 17800, 18400, 19100, 17600, 12800, 15400, 16900, 18200, 18800, 18000, 19450]
 const despesas  = [3200,  3400,  3350,  3600,  3500,  3100,  3300,  3450,  3550,  3600,  3580,  3650]
@@ -421,11 +414,137 @@ const aniversariantes = [
   { nome:'Renata Campos', data:'28/06', diasRestantes:22, enviado:true },
 ]
 
+// ─── BASE URL ────────────────────────────────────────
+const BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:8080'
+  : window.location.origin.includes('github.io')
+    ? 'https://bot-clinica-production.up.railway.app'
+    : ''
+
 // ─── INICIALIZAR ─────────────────────────────────────
-function inicializar() {
+async function inicializar() {
   renderCharts()
-  renderPacientes(pacientesMock)
-  renderAniversarios()
+  await carregarStats()
+  await carregarPacientes()
+  await carregarConsultasHoje()
+  await carregarConsultasCanceladas()
+  await carregarAniversarios()
+}
+
+async function carregarStats() {
+  try {
+    const s = await fetch(BASE + '/api/stats').then(r => r.json())
+    document.querySelector('.kpi.verde .kpi-value').textContent = s.ativos
+    document.querySelector('.kpi.verde .kpi-sub').textContent = s.mesConsultas + ' consultas este mês'
+    document.querySelector('.kpi.azul .kpi-value').textContent = s.mesConsultas
+    document.querySelector('.kpi.roxo .kpi-value').textContent = s.ativos
+    document.querySelector('.kpi.roxo .kpi-sub').textContent = s.total + ' pacientes no total'
+    document.querySelector('.kpi.vermelho .kpi-value').textContent = s.mesCancelados
+    document.querySelector('.kpi.vermelho .kpi-sub').textContent = 'cancelamentos no mês'
+
+    // Stats de consultas
+    const kpisConsultas = document.querySelectorAll('#consultas .kpi-value')
+    if (kpisConsultas.length >= 2) {
+      kpisConsultas[1].textContent = s.hojeConsultas
+    }
+  } catch(e) { console.warn('Stats indisponível', e) }
+}
+
+async function carregarPacientes() {
+  try {
+    const lista = await fetch(BASE + '/pacientes').then(r => r.json())
+    pacientesReais = lista.map(p => ({
+      nome: p.nome || '—',
+      cpf: p.cpf || '—',
+      nasc: p.nascimento || '—',
+      tel: p.telefone,
+      plano: p.plano || '—',
+      proxima: p.agendamento ? p.agendamento.replace('T', ' ').slice(0, 16) : '—',
+      status: p.status || 'ativo'
+    }))
+    renderPacientes(pacientesReais)
+  } catch(e) { console.warn('Pacientes indisponível', e); renderPacientes(pacientesMock) }
+}
+
+async function carregarConsultasHoje() {
+  try {
+    const lista = await fetch(BASE + '/api/consultas/hoje').then(r => r.json())
+    const tbody = document.querySelector('#consultas table tbody') || (() => {
+      const t = document.querySelector('#consultas table')
+      const tb = document.createElement('tbody')
+      t.appendChild(tb)
+      return tb
+    })()
+    if (lista.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:20px">Nenhuma consulta agendada para hoje</td></tr>'
+      return
+    }
+    tbody.innerHTML = lista.map(p => {
+      const hora = p.agendamento ? p.agendamento.slice(11, 16) : '—'
+      const badge = p.status === 'cancelado'
+        ? '<span class="badge badge-red">Cancelada</span>'
+        : '<span class="badge badge-blue">Confirmada</span>'
+      return `<tr>
+        <td>${hora}</td>
+        <td><strong>${p.nome || '—'}</strong></td>
+        <td>${p.plano || '—'}</td>
+        <td>—</td>
+        <td>${badge}</td>
+        <td><button class="btn btn-green" onclick="confirmarPag(this,'${p.nome}','?')">✓ Pago</button></td>
+      </tr>`
+    }).join('')
+  } catch(e) { console.warn('Consultas hoje indisponível', e) }
+}
+
+async function carregarConsultasCanceladas() {
+  try {
+    const lista = await fetch(BASE + '/api/consultas/canceladas').then(r => r.json())
+    const tabelas = document.querySelectorAll('#consultas .table-card')
+    if (tabelas.length < 2) return
+    const tbody = tabelas[1].querySelector('tbody') || (() => {
+      const t = tabelas[1].querySelector('table')
+      const tb = document.createElement('tbody')
+      t.appendChild(tb)
+      return tb
+    })()
+    if (lista.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:20px">Nenhum cancelamento este mês</td></tr>'
+      return
+    }
+    tbody.innerHTML = lista.map(p => {
+      const data = p.atualizado ? p.atualizado.slice(0, 10).split('-').reverse().join('/') : '—'
+      return `<tr>
+        <td>${data}</td>
+        <td><strong>${p.nome || '—'}</strong></td>
+        <td>${p.plano || '—'}</td>
+        <td>—</td>
+        <td><span class="badge badge-red">Cancelada</span></td>
+      </tr>`
+    }).join('')
+  } catch(e) { console.warn('Cancelamentos indisponível', e) }
+}
+
+async function carregarAniversarios() {
+  try {
+    const lista = await fetch(BASE + '/api/aniversarios').then(r => r.json())
+    const hoje = lista.filter(a => a.hoje).length
+    document.querySelector('#aniversarios .kpi.laranja .kpi-value').textContent = lista.length
+    document.querySelector('#aniversarios .kpi.azul .kpi-value').textContent = hoje
+    document.querySelector('#aniversarios .kpi.azul .kpi-sub').textContent =
+      hoje > 0 ? lista.filter(a => a.hoje).map(a => a.nome).join(', ') : 'nenhum hoje'
+
+    if (lista.length === 0) {
+      document.getElementById('anivGrid').innerHTML = '<p style="color:#64748b;padding:20px">Nenhum aniversariante este mês.</p>'
+      return
+    }
+    document.getElementById('anivGrid').innerHTML = lista.map(a => `
+      <div class="aniv-card">
+        <div class="aniv-emoji">${a.hoje ? '🎂' : '🎁'}</div>
+        <div class="aniv-nome">${a.nome}</div>
+        <div class="aniv-data">📅 ${a.nascimento} ${a.hoje ? '— <strong>HOJE!</strong>' : '— em ' + a.diasRestantes + ' dia(s)'}</div>
+        <button class="btn btn-primary" onclick="enviarAniversario('${a.nome}',this)">🎉 Enviar WhatsApp</button>
+      </div>`).join('')
+  } catch(e) { console.warn('Aniversários indisponível', e); renderAniversarios() }
 }
 
 // ─── CHARTS ──────────────────────────────────────────
@@ -504,8 +623,9 @@ function renderPacientes(lista) {
 
 function filtrarPacientes() {
   const q = document.getElementById('buscaPaciente').value.toLowerCase()
-  renderPacientes(pacientesMock.filter(p =>
-    p.nome.toLowerCase().includes(q) || p.cpf.includes(q) || p.tel.includes(q)
+  const fonte = pacientesReais.length > 0 ? pacientesReais : pacientesMock
+  renderPacientes(fonte.filter(p =>
+    (p.nome||'').toLowerCase().includes(q) || (p.cpf||'').includes(q) || (p.tel||'').includes(q)
   ))
 }
 

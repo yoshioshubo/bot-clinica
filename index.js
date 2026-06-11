@@ -904,6 +904,76 @@ app.get('/pacientes', function(req, res) {
   res.json(db.prepare('SELECT * FROM pacientes ORDER BY atualizado DESC').all())
 })
 
+app.get('/api/stats', function(req, res) {
+  const hoje = agoraBrasilia().slice(0, 10)
+  const mesAtual = hoje.slice(0, 7)
+
+  const total = db.prepare('SELECT COUNT(*) as n FROM pacientes').get().n
+  const ativos = db.prepare("SELECT COUNT(*) as n FROM pacientes WHERE status = 'ativo'").get().n
+  const cancelados = db.prepare("SELECT COUNT(*) as n FROM pacientes WHERE status = 'cancelado'").get().n
+
+  const hojeConsultas = db.prepare(
+    "SELECT COUNT(*) as n FROM pacientes WHERE agendamento LIKE ? AND status = 'ativo'"
+  ).get(hoje + '%').n
+
+  const mesConsultas = db.prepare(
+    "SELECT COUNT(*) as n FROM pacientes WHERE agendamento LIKE ? AND status = 'ativo'"
+  ).get(mesAtual + '%').n
+
+  const mesCancelados = db.prepare(
+    "SELECT COUNT(*) as n FROM pacientes WHERE status = 'cancelado' AND atualizado LIKE ?"
+  ).get(mesAtual + '%').n
+
+  res.json({ total, ativos, cancelados, hojeConsultas, mesConsultas, mesCancelados })
+})
+
+app.get('/api/consultas/hoje', function(req, res) {
+  const hoje = agoraBrasilia().slice(0, 10)
+  const lista = db.prepare(
+    "SELECT nome, telefone, plano, agendamento, status FROM pacientes WHERE agendamento LIKE ? ORDER BY agendamento"
+  ).all(hoje + '%')
+  res.json(lista)
+})
+
+app.get('/api/consultas/proximas', function(req, res) {
+  const hoje = agoraBrasilia().slice(0, 10)
+  const lista = db.prepare(
+    "SELECT nome, telefone, plano, agendamento, status FROM pacientes WHERE agendamento >= ? AND status = 'ativo' ORDER BY agendamento LIMIT 20"
+  ).all(hoje)
+  res.json(lista)
+})
+
+app.get('/api/consultas/canceladas', function(req, res) {
+  const mesAtual = agoraBrasilia().slice(0, 7)
+  const lista = db.prepare(
+    "SELECT nome, telefone, plano, agendamento, atualizado FROM pacientes WHERE status = 'cancelado' AND atualizado LIKE ? ORDER BY atualizado DESC"
+  ).all(mesAtual + '%')
+  res.json(lista)
+})
+
+app.get('/api/aniversarios', function(req, res) {
+  const hoje = agoraBrasilia()
+  const mes = hoje.slice(5, 7)
+  const diaHoje = parseInt(hoje.slice(8, 10))
+
+  const todos = db.prepare("SELECT nome, nascimento, telefone FROM pacientes WHERE nascimento IS NOT NULL AND nascimento != ''").all()
+  const aniv = todos
+    .filter(p => {
+      const parts = p.nascimento.split('/')
+      if (parts.length < 2) return false
+      return parts[1] === mes
+    })
+    .map(p => {
+      const parts = p.nascimento.split('/')
+      const dia = parseInt(parts[0])
+      const diasRestantes = dia >= diaHoje ? dia - diaHoje : 0
+      return { nome: p.nome, nascimento: p.nascimento, telefone: p.telefone, dia, diasRestantes, hoje: dia === diaHoje }
+    })
+    .sort((a, b) => a.dia - b.dia)
+
+  res.json(aniv)
+})
+
 app.get('/health', function(req, res) {
   res.json({ status: 'ok', uptime: process.uptime() })
 })
