@@ -161,35 +161,25 @@
 <!-- ═══════════════════ VISÃO GERAL ═══════════════════ -->
 <div class="section active" id="visao">
   <div class="kpi-grid">
-    <div class="kpi verde">
-      <div class="kpi-label">Faturamento Junho</div>
-      <div class="kpi-value">R$ 19.450</div>
-      <div class="kpi-sub">118 consultas realizadas</div>
-      <div class="kpi-trend up">↑ 8% vs maio</div>
-    </div>
     <div class="kpi azul">
       <div class="kpi-label">Consultas este mês</div>
-      <div class="kpi-value">118</div>
-      <div class="kpi-sub">Meta: 120 consultas</div>
-      <div class="kpi-trend up">↑ 98% da meta</div>
+      <div class="kpi-value" id="kpiConsultasMes">—</div>
+      <div class="kpi-sub" id="kpiConsultasMesSub">carregando...</div>
     </div>
     <div class="kpi roxo">
       <div class="kpi-label">Pacientes ativos</div>
-      <div class="kpi-value">87</div>
-      <div class="kpi-sub">+6 novos em junho</div>
-      <div class="kpi-trend up">↑ 7% vs maio</div>
-    </div>
-    <div class="kpi laranja">
-      <div class="kpi-label">Ticket Médio</div>
-      <div class="kpi-value">R$ 164,83</div>
-      <div class="kpi-sub">Particular + Convênios</div>
-      <div class="kpi-trend up">↑ 3% vs maio</div>
+      <div class="kpi-value" id="kpiAtivos">—</div>
+      <div class="kpi-sub" id="kpiAtivosSub">carregando...</div>
     </div>
     <div class="kpi vermelho">
-      <div class="kpi-label">Turn Over</div>
-      <div class="kpi-value">4,6%</div>
-      <div class="kpi-sub">4 cancelamentos no mês</div>
-      <div class="kpi-trend up">↓ 2% vs maio</div>
+      <div class="kpi-label">Cancelamentos no mês</div>
+      <div class="kpi-value" id="kpiCancelados">—</div>
+      <div class="kpi-sub">este mês</div>
+    </div>
+    <div class="kpi verde">
+      <div class="kpi-label">Consultas hoje</div>
+      <div class="kpi-value" id="kpiHoje">—</div>
+      <div class="kpi-sub">agendadas para hoje</div>
     </div>
   </div>
 
@@ -218,15 +208,14 @@
 
 <!-- ═══════════════════ CONSULTAS ═══════════════════ -->
 <div class="section" id="consultas">
-  <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
-    <div class="kpi azul"><div class="kpi-label">Próximos 7 dias</div><div class="kpi-value">24</div><div class="kpi-sub">consultas agendadas</div></div>
-    <div class="kpi verde"><div class="kpi-label">Hoje</div><div class="kpi-value">8</div><div class="kpi-sub">consultas</div></div>
-    <div class="kpi vermelho"><div class="kpi-label">Canceladas este mês</div><div class="kpi-value">4</div><div class="kpi-sub">turn over 4,6%</div></div>
-    <div class="kpi laranja"><div class="kpi-label">Lista de espera</div><div class="kpi-value">12</div><div class="kpi-sub">pacientes aguardando</div></div>
+  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi verde"><div class="kpi-label">Hoje</div><div class="kpi-value" id="kpiHojeConsultas">—</div><div class="kpi-sub">consultas agendadas</div></div>
+    <div class="kpi vermelho"><div class="kpi-label">Canceladas este mês</div><div class="kpi-value" id="kpiCanceladosMes">—</div><div class="kpi-sub">cancelamentos</div></div>
+    <div class="kpi roxo"><div class="kpi-label">Total de pacientes</div><div class="kpi-value" id="kpiTotalPac">—</div><div class="kpi-sub">cadastrados</div></div>
   </div>
 
   <div class="table-card" style="margin-bottom:20px">
-    <h3>📅 Próximas Consultas <span class="badge badge-blue">Hoje — 06/06/2026</span></h3>
+    <h3>📅 Consultas de Hoje <span class="badge badge-blue" id="badgeDataHoje"></span></h3>
     <table>
       <thead><tr><th>Horário</th><th>Paciente</th><th>Convênio</th><th>Valor</th><th>Status</th><th>Ação</th></tr></thead>
       <tbody></tbody>
@@ -249,9 +238,9 @@
     <button class="btn btn-primary">+ Novo Paciente</button>
   </div>
   <div class="table-card">
-    <h3>👥 Cadastro de Pacientes <span class="badge badge-blue" id="totalPacientes">87 pacientes</span></h3>
+    <h3>👥 Cadastro de Pacientes <span class="badge badge-blue" id="totalPacientes">—</span></h3>
     <table>
-      <tr><th>Nome</th><th>CPF</th><th>Nascimento</th><th>Telefone</th><th>Convênio</th><th>Próx. Consulta</th><th>Status</th></tr>
+      <thead><tr><th>Nome</th><th>CPF</th><th>Nascimento</th><th>Telefone</th><th>Convênio</th><th>Próx. Consulta</th><th>Status</th></tr></thead>
       <tbody id="tabelaPacientes"></tbody>
     </table>
   </div>
@@ -304,33 +293,21 @@
 
   <div class="dre-grid">
     <div class="dre-card">
-      <h3>💰 Receitas — Junho 2026</h3>
-      <div class="dre-row"><span>Particular (52 consultas)</span><span style="color:#10b981;font-weight:700">R$ 11.440,00</span></div>
-      <div class="dre-row"><span>Unimed (28 consultas)</span><span style="color:#10b981;font-weight:700">R$ 4.060,00</span></div>
-      <div class="dre-row"><span>Bradesco (18 consultas)</span><span style="color:#10b981;font-weight:700">R$ 2.880,00</span></div>
-      <div class="dre-row"><span>Amil (12 consultas)</span><span style="color:#10b981;font-weight:700">R$ 1.680,00</span></div>
-      <div class="dre-row"><span>BB Saúde (8 consultas)</span><span style="color:#10b981;font-weight:700">R$ 1.040,00</span></div>
-      <div class="dre-row"><span>A receber (convênios)</span><span style="color:#f59e0b;font-weight:700">R$ 5.840,00</span></div>
-      <div class="dre-total"><span>Total Bruto</span><span style="color:#10b981">R$ 21.100,00</span></div>
+      <h3>💰 Receitas — <span id="tituloDREMes">este mês</span></h3>
+      <div id="listaReceitas"><div class="dre-row" style="color:#64748b;justify-content:center">Nenhuma receita lançada</div></div>
+      <div class="dre-total"><span>Total Bruto</span><span id="totalReceitas" style="color:#10b981">R$ 0,00</span></div>
     </div>
 
     <div class="dre-card">
-      <h3>💸 Despesas — Junho 2026</h3>
-      <div id="listaDespesas">
-        <div class="dre-row"><span>Aluguel sala</span><span style="color:#ef4444">R$ 2.200,00</span></div>
-        <div class="dre-row"><span>Contabilidade</span><span style="color:#ef4444">R$ 320,00</span></div>
-        <div class="dre-row"><span>CRP (anuidade)</span><span style="color:#ef4444">R$ 110,00</span></div>
-        <div class="dre-row"><span>Supervisão clínica</span><span style="color:#ef4444">R$ 480,00</span></div>
-        <div class="dre-row"><span>Marketing</span><span style="color:#ef4444">R$ 350,00</span></div>
-        <div class="dre-row"><span>Materiais</span><span style="color:#ef4444">R$ 190,00</span></div>
-      </div>
-      <div class="dre-total"><span>Total Despesas</span><span id="totalDespesas" style="color:#ef4444">R$ 3.650,00</span></div>
+      <h3>💸 Despesas — <span id="tituloDREMes2">este mês</span></h3>
+      <div id="listaDespesas"><div class="dre-row" style="color:#64748b;justify-content:center">Nenhuma despesa lançada</div></div>
+      <div class="dre-total"><span>Total Despesas</span><span id="totalDespesas" style="color:#ef4444">R$ 0,00</span></div>
     </div>
   </div>
 
   <div class="dre-resultado">
-    <div><span>💎 Resultado Líquido — Junho 2026</span></div>
-    <div style="text-align:right"><span id="resultadoLabel">Lucro do mês</span><br><strong id="resultadoValor">R$ 15.800,00</strong></div>
+    <div><span>💎 Resultado Líquido — <span id="tituloDREMes3">este mês</span></span></div>
+    <div style="text-align:right"><span id="resultadoLabel">Resultado</span><br><strong id="resultadoValor">R$ 0,00</strong></div>
   </div>
 
   <div class="chart-card" style="margin-top:20px">
@@ -341,10 +318,9 @@
 
 <!-- ═══════════════════ ANIVERSÁRIOS ═══════════════════ -->
 <div class="section" id="aniversarios">
-  <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:28px">
-    <div class="kpi laranja"><div class="kpi-label">Aniversários em Junho</div><div class="kpi-value">8</div><div class="kpi-sub">pacientes fazem aniversário</div></div>
-    <div class="kpi verde"><div class="kpi-label">Mensagens enviadas</div><div class="kpi-value">5</div><div class="kpi-sub">enviadas automaticamente</div></div>
-    <div class="kpi azul"><div class="kpi-label">Pendentes hoje</div><div class="kpi-value">1</div><div class="kpi-sub">06/06 — Diego Martins</div></div>
+  <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:28px">
+    <div class="kpi laranja"><div class="kpi-label">Aniversários este mês</div><div class="kpi-value" id="kpiAnivTotal">—</div><div class="kpi-sub">pacientes fazem aniversário</div></div>
+    <div class="kpi azul"><div class="kpi-label">Aniversários hoje</div><div class="kpi-value" id="kpiAnivHoje">—</div><div class="kpi-sub" id="kpiAnivHojeSub">—</div></div>
   </div>
 
   <div class="aniv-grid" id="anivGrid"></div>
@@ -376,43 +352,7 @@ function showSection(id) {
 
 // ─── DADOS ───────────────────────────────────────────
 let pacientesReais = []
-
-// ─── DADOS MOCK (fallback) ────────────────────────────
-const meses = ['Jul/25','Ago/25','Set/25','Out/25','Nov/25','Dez/25','Jan/26','Fev/26','Mar/26','Abr/26','Mai/26','Jun/26']
-const receitas  = [16200, 17800, 18400, 19100, 17600, 12800, 15400, 16900, 18200, 18800, 18000, 19450]
-const despesas  = [3200,  3400,  3350,  3600,  3500,  3100,  3300,  3450,  3550,  3600,  3580,  3650]
-const lucros    = receitas.map((r,i) => r - despesas[i])
-const consultas = [98, 108, 112, 116, 107, 78, 94, 103, 110, 114, 109, 118]
-const pacientes_ativos = [68, 72, 74, 78, 76, 71, 73, 77, 80, 83, 81, 87]
-
-const pacientesMock = [
-  { nome:'Ana Paula Ferreira', cpf:'123.456.789-01', nasc:'15/03/1988', tel:'(32) 99812-3456', plano:'Particular', proxima:'06/06/2026', status:'ativo' },
-  { nome:'Carlos Eduardo Lima', cpf:'234.567.890-12', nasc:'22/07/1975', tel:'(32) 99823-4567', plano:'Unimed', proxima:'06/06/2026', status:'ativo' },
-  { nome:'Fernanda Costa', cpf:'345.678.901-23', nasc:'08/11/1992', tel:'(32) 99834-5678', plano:'Bradesco', proxima:'06/06/2026', status:'ativo' },
-  { nome:'Roberto Alves', cpf:'456.789.012-34', nasc:'30/01/1980', tel:'(32) 99845-6789', plano:'Particular', proxima:'06/06/2026', status:'ativo' },
-  { nome:'Juliana Mendes', cpf:'567.890.123-45', nasc:'14/09/1995', tel:'(32) 99856-7890', plano:'Amil', proxima:'06/06/2026', status:'ativo' },
-  { nome:'Marcos Souza', cpf:'678.901.234-56', nasc:'06/06/1990', tel:'(32) 99867-8901', plano:'Particular', proxima:'06/06/2026', status:'ativo' },
-  { nome:'Patrícia Oliveira', cpf:'789.012.345-67', nasc:'25/04/1983', tel:'(32) 99878-9012', plano:'BB Saúde', proxima:'06/06/2026', status:'ativo' },
-  { nome:'Diego Martins', cpf:'890.123.456-78', nasc:'06/06/1987', tel:'(32) 99889-0123', plano:'Particular', proxima:'06/06/2026', status:'ativo' },
-  { nome:'Luciana Ramos', cpf:'901.234.567-89', nasc:'18/12/1978', tel:'(32) 99890-1234', plano:'Unimed', proxima:'—', status:'cancelado' },
-  { nome:'André Pereira', cpf:'012.345.678-90', nasc:'03/05/1985', tel:'(32) 99801-2345', plano:'Particular', proxima:'13/06/2026', status:'ativo' },
-  { nome:'Camila Torres', cpf:'111.222.333-44', nasc:'20/08/1993', tel:'(32) 99812-3456', plano:'Bradesco', proxima:'09/06/2026', status:'ativo' },
-  { nome:'Felipe Gomes', cpf:'222.333.444-55', nasc:'11/02/1982', tel:'(32) 99823-4567', plano:'Particular', proxima:'—', status:'cancelado' },
-  { nome:'Beatriz Santos', cpf:'333.444.555-66', nasc:'29/06/1997', tel:'(32) 99834-5678', plano:'Amil', proxima:'10/06/2026', status:'ativo' },
-  { nome:'Rodrigo Carvalho', cpf:'444.555.666-77', nasc:'17/10/1971', tel:'(32) 99845-6789', plano:'Particular', proxima:'11/06/2026', status:'ativo' },
-  { nome:'Isabela Nunes', cpf:'555.666.777-88', nasc:'06/06/2001', tel:'(32) 99856-7890', plano:'Unimed', proxima:'12/06/2026', status:'ativo' },
-]
-
-const aniversariantes = [
-  { nome:'Marcos Souza', data:'06/06', diasRestantes:0, enviado:false },
-  { nome:'Diego Martins', data:'06/06', diasRestantes:0, enviado:false },
-  { nome:'Isabela Nunes', data:'06/06', diasRestantes:0, enviado:true },
-  { nome:'Carla Freitas', data:'08/06', diasRestantes:2, enviado:false },
-  { nome:'Paulo Henrique', data:'12/06', diasRestantes:6, enviado:false },
-  { nome:'Marina Vieira', data:'18/06', diasRestantes:12, enviado:true },
-  { nome:'Thiago Baptista', data:'22/06', diasRestantes:16, enviado:false },
-  { nome:'Renata Campos', data:'28/06', diasRestantes:22, enviado:true },
-]
+let totalDesp = 0
 
 // ─── BASE URL ────────────────────────────────────────
 const BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -434,19 +374,18 @@ async function inicializar() {
 async function carregarStats() {
   try {
     const s = await fetch(BASE + '/api/stats').then(r => r.json())
-    document.querySelector('.kpi.verde .kpi-value').textContent = s.ativos
-    document.querySelector('.kpi.verde .kpi-sub').textContent = s.mesConsultas + ' consultas este mês'
-    document.querySelector('.kpi.azul .kpi-value').textContent = s.mesConsultas
-    document.querySelector('.kpi.roxo .kpi-value').textContent = s.ativos
-    document.querySelector('.kpi.roxo .kpi-sub').textContent = s.total + ' pacientes no total'
-    document.querySelector('.kpi.vermelho .kpi-value').textContent = s.mesCancelados
-    document.querySelector('.kpi.vermelho .kpi-sub').textContent = 'cancelamentos no mês'
-
-    // Stats de consultas
-    const kpisConsultas = document.querySelectorAll('#consultas .kpi-value')
-    if (kpisConsultas.length >= 2) {
-      kpisConsultas[1].textContent = s.hojeConsultas
-    }
+    document.getElementById('kpiConsultasMes').textContent = s.mesConsultas
+    document.getElementById('kpiConsultasMesSub').textContent = s.total + ' pacientes no total'
+    document.getElementById('kpiAtivos').textContent = s.ativos
+    document.getElementById('kpiAtivosSub').textContent = s.total + ' cadastrados no total'
+    document.getElementById('kpiCancelados').textContent = s.mesCancelados
+    document.getElementById('kpiHoje').textContent = s.hojeConsultas
+    document.getElementById('kpiHojeConsultas').textContent = s.hojeConsultas
+    document.getElementById('kpiCanceladosMes').textContent = s.mesCancelados
+    document.getElementById('kpiTotalPac').textContent = s.total
+    const hoje = new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' })
+    const badgeHoje = document.getElementById('badgeDataHoje')
+    if (badgeHoje) badgeHoje.textContent = 'Hoje — ' + hoje
   } catch(e) { console.warn('Stats indisponível', e) }
 }
 
@@ -527,11 +466,10 @@ async function carregarConsultasCanceladas() {
 async function carregarAniversarios() {
   try {
     const lista = await fetch(BASE + '/api/aniversarios').then(r => r.json())
-    const hoje = lista.filter(a => a.hoje).length
-    document.querySelector('#aniversarios .kpi.laranja .kpi-value').textContent = lista.length
-    document.querySelector('#aniversarios .kpi.azul .kpi-value').textContent = hoje
-    document.querySelector('#aniversarios .kpi.azul .kpi-sub').textContent =
-      hoje > 0 ? lista.filter(a => a.hoje).map(a => a.nome).join(', ') : 'nenhum hoje'
+    const hoje = lista.filter(a => a.hoje)
+    document.getElementById('kpiAnivTotal').textContent = lista.length
+    document.getElementById('kpiAnivHoje').textContent = hoje.length
+    document.getElementById('kpiAnivHojeSub').textContent = hoje.length > 0 ? hoje.map(a => a.nome).join(', ') : 'nenhum hoje'
 
     if (lista.length === 0) {
       document.getElementById('anivGrid').innerHTML = '<p style="color:#64748b;padding:20px">Nenhum aniversariante este mês.</p>'
@@ -544,63 +482,41 @@ async function carregarAniversarios() {
         <div class="aniv-data">📅 ${a.nascimento} ${a.hoje ? '— <strong>HOJE!</strong>' : '— em ' + a.diasRestantes + ' dia(s)'}</div>
         <button class="btn btn-primary" onclick="enviarAniversario('${a.nome}',this)">🎉 Enviar WhatsApp</button>
       </div>`).join('')
-  } catch(e) { console.warn('Aniversários indisponível', e); renderAniversarios() }
+  } catch(e) { console.warn('Aniversários indisponível', e) }
 }
 
 // ─── CHARTS ──────────────────────────────────────────
 function renderCharts() {
   const cfg = { responsive: true, plugins: { legend: { position:'top' } } }
+  const semDados = { labels: ['Sem dados ainda'], datasets: [{ data:[0] }] }
 
   new Chart(document.getElementById('chartFaturamento'), {
     type: 'bar',
-    data: {
-      labels: meses,
-      datasets: [
-        { label:'Receita', data: receitas, backgroundColor:'rgba(79,70,229,0.7)', borderRadius:6 },
-        { label:'Despesas', data: despesas, backgroundColor:'rgba(239,68,68,0.7)', borderRadius:6 },
-        { label:'Lucro', data: lucros, backgroundColor:'rgba(16,185,129,0.7)', borderRadius:6 },
-      ]
-    },
+    data: semDados,
     options: { ...cfg, scales: { y: { ticks: { callback: v => 'R$'+v.toLocaleString('pt-BR') } } } }
   })
 
   new Chart(document.getElementById('chartMix'), {
     type: 'doughnut',
-    data: {
-      labels: ['Particular','Unimed','Bradesco','Amil','BB Saúde'],
-      datasets: [{ data:[44,24,15,10,7], backgroundColor:['#4f46e5','#10b981','#3b82f6','#f59e0b','#8b5cf6'] }]
-    },
+    data: { labels: ['Sem dados'], datasets: [{ data:[1], backgroundColor:['#e2e8f0'] }] },
     options: { ...cfg, plugins: { legend: { position:'bottom' } } }
   })
 
   new Chart(document.getElementById('chartConsultas'), {
     type: 'line',
-    data: {
-      labels: meses,
-      datasets: [{ label:'Consultas', data: consultas, borderColor:'#4f46e5', backgroundColor:'rgba(79,70,229,0.1)', fill:true, tension:0.4, pointRadius:4 }]
-    },
+    data: semDados,
     options: cfg
   })
 
   new Chart(document.getElementById('chartPacientes'), {
     type: 'line',
-    data: {
-      labels: meses,
-      datasets: [{ label:'Pacientes Ativos', data: pacientes_ativos, borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.1)', fill:true, tension:0.4, pointRadius:4 }]
-    },
+    data: semDados,
     options: cfg
   })
 
   new Chart(document.getElementById('chartDRE'), {
     type: 'bar',
-    data: {
-      labels: meses,
-      datasets: [
-        { label:'Receita', data: receitas, backgroundColor:'rgba(79,70,229,0.7)', borderRadius:6 },
-        { label:'Despesas', data: despesas, backgroundColor:'rgba(239,68,68,0.7)', borderRadius:6 },
-        { label:'Lucro Líquido', data: lucros, type:'line', borderColor:'#10b981', backgroundColor:'rgba(16,185,129,0.1)', fill:true, tension:0.4, yAxisID:'y' }
-      ]
-    },
+    data: semDados,
     options: { ...cfg, scales: { y: { ticks: { callback: v => 'R$'+v.toLocaleString('pt-BR') } } } }
   })
 }
@@ -630,18 +546,6 @@ function filtrarPacientes() {
 }
 
 // ─── ANIVERSÁRIOS ────────────────────────────────────
-function renderAniversarios() {
-  document.getElementById('anivGrid').innerHTML = aniversariantes.map(a => `
-    <div class="aniv-card">
-      <div class="aniv-emoji">${a.diasRestantes === 0 ? '🎂' : '🎁'}</div>
-      <div class="aniv-nome">${a.nome}</div>
-      <div class="aniv-data">📅 ${a.data} ${a.diasRestantes === 0 ? '— <strong>HOJE!</strong>' : '— em '+a.diasRestantes+' dias'}</div>
-      ${a.enviado
-        ? `<span class="badge badge-green">✓ Mensagem enviada</span>`
-        : `<button class="btn btn-primary" onclick="enviarAniversario('${a.nome}',this)">🎉 Enviar WhatsApp</button>`
-      }
-    </div>`).join('')
-}
 
 function enviarAniversario(nome, btn) {
   btn.textContent = '✓ Enviado!'
@@ -660,20 +564,30 @@ function confirmarPag(btn, nome, valor) {
 }
 
 // ─── DESPESAS ────────────────────────────────────────
-let totalDesp = 3650
 function lancarDespesa() {
-  const data = document.getElementById('despData').value
   const cat  = document.getElementById('despCategoria').value
   const desc = document.getElementById('despDescricao').value
   const val  = parseFloat(document.getElementById('despValor').value)
   if (!desc || !val) return alert('Preencha descrição e valor!')
+
+  const listaDespesas = document.getElementById('listaDespesas')
+  const vazio = listaDespesas.querySelector('[style*="justify-content:center"]')
+  if (vazio) vazio.remove()
+
   totalDesp += val
   const div = document.createElement('div')
   div.className = 'dre-row'
   div.innerHTML = `<span>${cat} — ${desc}</span><span style="color:#ef4444">R$ ${val.toFixed(2).replace('.',',')}</span>`
-  document.getElementById('listaDespesas').appendChild(div)
+  listaDespesas.appendChild(div)
+
+  const totalReceitasVal = parseFloat(
+    (document.getElementById('totalReceitas').textContent || 'R$ 0').replace('R$','').replace('.','').replace(',','.').trim()
+  ) || 0
+
   document.getElementById('totalDespesas').textContent = 'R$ ' + totalDesp.toLocaleString('pt-BR', {minimumFractionDigits:2})
-  document.getElementById('resultadoValor').textContent = 'R$ ' + (21100 - totalDesp).toLocaleString('pt-BR', {minimumFractionDigits:2})
+  const resultado = totalReceitasVal - totalDesp
+  document.getElementById('resultadoValor').textContent = 'R$ ' + resultado.toLocaleString('pt-BR', {minimumFractionDigits:2})
+  document.getElementById('resultadoLabel').textContent = resultado >= 0 ? 'Lucro do mês' : 'Prejuízo do mês'
   document.getElementById('despDescricao').value = ''
   document.getElementById('despValor').value = ''
 }
