@@ -1,2 +1,23 @@
-node_modules 
-CREDENCIAIS 
+# Dependências
+node_modules/
+
+# Credenciais e segredos — NUNCA subir ao GitHub
+*.json
+!package.json
+!package-lock.json
+*.env
+.env*
+
+# Bancos de dados locais
+*.db
+*.sqlite
+*.sqlite3
+
+# Arquivos de clientes e documentos internos
+Documento_Implantacao_BotClinica.pdf
+gerar_doc_implantacao.py
+"=== Z-API - BOT CLÍNICA ===.md"
+
+# Logs
+*.log
+logs/

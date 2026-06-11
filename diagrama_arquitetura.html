@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Arquitetura Multi-Tenant — Bot Clínica</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; min-height: 100vh; padding: 40px 20px; }
+
+  h1 { text-align: center; font-size: 26px; color: #a5b4fc; margin-bottom: 6px; }
+  .subtitle { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 40px; }
+
+  /* TABS */
+  .tabs { display: flex; justify-content: center; gap: 12px; margin-bottom: 40px; }
+  .tab { padding: 10px 24px; border-radius: 30px; border: 2px solid #334155; background: transparent; color: #94a3b8; cursor: pointer; font-size: 14px; font-weight: 600; transition: all .2s; }
+  .tab.active { background: #4f46e5; border-color: #4f46e5; color: white; }
+
+  /* DIAGRAMA */
+  .diagrama { display: none; }
+  .diagrama.active { display: block; }
+
+  /* CAMADAS */
+  .camada { margin-bottom: 20px; }
+  .camada-label { text-align: center; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #475569; margin-bottom: 12px; }
+
+  /* BOXES */
+  .row { display: flex; justify-content: center; align-items: stretch; gap: 16px; flex-wrap: wrap; }
+  .box { border-radius: 16px; padding: 16px 20px; text-align: center; min-width: 140px; position: relative; }
+  .box-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .box-sub { font-size: 11px; opacity: 0.75; line-height: 1.4; }
+  .box-icon { font-size: 28px; margin-bottom: 8px; display: block; }
+
+  /* CORES */
+  .azul    { background: linear-gradient(135deg, #1e40af, #3b82f6); border: 1px solid #3b82f6; }
+  .roxo    { background: linear-gradient(135deg, #4c1d95, #7c3aed); border: 1px solid #7c3aed; }
+  .verde   { background: linear-gradient(135deg, #065f46, #10b981); border: 1px solid #10b981; }
+  .laranja { background: linear-gradient(135deg, #92400e, #f59e0b); border: 1px solid #f59e0b; }
+  .cinza   { background: linear-gradient(135deg, #1e293b, #334155); border: 1px solid #475569; }
+  .vermelho{ background: linear-gradient(135deg, #7f1d1d, #ef4444); border: 1px solid #ef4444; }
+  .rosa    { background: linear-gradient(135deg, #831843, #ec4899); border: 1px solid #ec4899; }
+  .ciano   { background: linear-gradient(135deg, #164e63, #06b6d4); border: 1px solid #06b6d4; }
+  .central { background: linear-gradient(135deg, #312e81, #4f46e5); border: 2px solid #818cf8; box-shadow: 0 0 30px rgba(79,70,229,0.4); }
+
+  /* SETAS */
+  .setas { display: flex; justify-content: center; gap: 40px; margin: 8px 0; }
+  .seta { display: flex; flex-direction: column; align-items: center; color: #475569; font-size: 20px; }
+  .seta span { font-size: 10px; color: #334155; margin-top: 2px; }
+  .seta-linha { width: 2px; height: 24px; background: linear-gradient(to bottom, #4f46e5, #334155); }
+
+  /* SEPARADOR */
+  .sep { border: none; border-top: 1px dashed #1e293b; margin: 24px 0; }
+
+  /* LEGENDA */
+  .legenda { display: flex; justify-content: center; gap: 24px; flex-wrap: wrap; margin-top: 32px; padding: 20px; background: #1e293b; border-radius: 16px; }
+  .legenda-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #94a3b8; }
+  .legenda-cor { width: 14px; height: 14px; border-radius: 4px; }
+
+  /* MULTI-TENANT ESPECÍFICO */
+  .clientes-row { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .cliente-box { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 12px 16px; text-align: center; min-width: 120px; }
+  .cliente-box .emoji { font-size: 22px; margin-bottom: 4px; }
+  .cliente-box .nome { font-size: 12px; font-weight: 700; color: #e2e8f0; }
+  .cliente-box .tipo { font-size: 10px; color: #64748b; margin-top: 2px; }
+
+  /* SERVIDOR CENTRAL */
+  .servidor { background: linear-gradient(135deg, #1e1b4b, #312e81); border: 2px solid #4f46e5; border-radius: 20px; padding: 24px; margin: 0 auto 20px; max-width: 800px; box-shadow: 0 0 40px rgba(79,70,229,0.3); }
+  .servidor h3 { text-align: center; color: #a5b4fc; font-size: 16px; margin-bottom: 16px; }
+  .servidor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .modulo { background: rgba(79,70,229,0.15); border: 1px solid #4338ca; border-radius: 10px; padding: 10px; text-align: center; }
+  .modulo .m-icon { font-size: 20px; margin-bottom: 4px; }
+  .modulo .m-nome { font-size: 11px; font-weight: 700; color: #c7d2fe; }
+  .modulo .m-desc { font-size: 10px; color: #6366f1; margin-top: 2px; }
+
+  /* APIS EXTERNAS */
+  .apis { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
+  .api-box { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 10px 14px; text-align: center; min-width: 100px; }
+  .api-box .a-icon { font-size: 20px; margin-bottom: 4px; }
+  .api-box .a-nome { font-size: 11px; font-weight: 700; color: #94a3b8; }
+  .api-box .a-desc { font-size: 10px; color: #475569; }
+
+  /* BANCO DADOS */
+  .bancos { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+  .banco { background: #0f172a; border: 1px solid #065f46; border-radius: 10px; padding: 10px 14px; text-align: center; min-width: 130px; }
+  .banco .b-icon { font-size: 18px; margin-bottom: 4px; }
+  .banco .b-nome { font-size: 11px; font-weight: 700; color: #34d399; }
+  .banco .b-desc { font-size: 10px; color: #065f46; }
+
+  /* COMPARATIVO */
+  .comp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 900px; margin: 0 auto; }
+  .comp-card { background: #1e293b; border-radius: 20px; padding: 24px; }
+  .comp-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .comp-item { display: flex; gap: 10px; margin-bottom: 10px; font-size: 13px; align-items: flex-start; }
+  .comp-item .ci { font-size: 16px; flex-shrink: 0; }
+  .comp-item .ct { color: #cbd5e1; line-height: 1.4; }
+  .comp-item .ct strong { color: white; }
+  .comp-custo { background: #0f172a; border-radius: 12px; padding: 14px; margin-top: 16px; }
+  .comp-custo-title { font-size: 11px; color: #64748b; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; }
+  .comp-custo-row { display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+  .comp-custo-total { display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; margin-top: 8px; padding-top: 8px; border-top: 1px solid #1e293b; }
+
+  /* FLUXO */
+  .fluxo { max-width: 700px; margin: 0 auto; }
+  .fluxo-step { display: flex; gap: 16px; margin-bottom: 8px; align-items: flex-start; }
+  .fluxo-num { width: 36px; height: 36px; border-radius: 50%; background: #4f46e5; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+  .fluxo-content { background: #1e293b; border-radius: 12px; padding: 14px 16px; flex: 1; }
+  .fluxo-content .fc-title { font-size: 13px; font-weight: 700; color: #e2e8f0; margin-bottom: 4px; }
+  .fluxo-content .fc-desc { font-size: 12px; color: #64748b; line-height: 1.5; }
+  .fluxo-arrow { text-align: center; color: #334155; font-size: 20px; margin: 4px 0; }
+
+  @media(max-width:600px) { .comp-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<h1>🤖 Bot Clínica — Arquitetura do Sistema</h1>
+<p class="subtitle">Visualização da estrutura para múltiplos clientes</p>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('multitenant')">🏢 Multi-Tenant (Recomendado)</button>
+  <button class="tab" onclick="showTab('atual')">📦 Estrutura Atual</button>
+  <button class="tab" onclick="showTab('comparativo')">⚖️ Comparativo</button>
+  <button class="tab" onclick="showTab('fluxo')">🔄 Fluxo de Mensagem</button>
+</div>
+
+<!-- ═══════════════════ MULTI-TENANT ═══════════════════ -->
+<div class="diagrama active" id="multitenant">
+
+  <!-- PACIENTES -->
+  <div class="camada">
+    <div class="camada-label">👥 Camada 1 — Pacientes (usuários finais)</div>
+    <div class="clientes-row">
+      <div class="cliente-box"><div class="emoji">📱</div><div class="nome">Paciente A</div><div class="tipo">WhatsApp</div></div>
+      <div class="cliente-box"><div class="emoji">📱</div><div class="nome">Paciente B</div><div class="tipo">WhatsApp</div></div>
+      <div class="cliente-box"><div class="emoji">📱</div><div class="nome">Paciente C</div><div class="tipo">Áudio</div></div>
+      <div class="cliente-box"><div class="emoji">📱</div><div class="nome">Paciente D</div><div class="tipo">WhatsApp</div></div>
+      <div class="cliente-box"><div class="emoji">📱</div><div class="nome">Paciente ...</div><div class="tipo">WhatsApp</div></div>
+    </div>
+  </div>
+
+  <div class="setas">
+    <div class="seta"><div class="seta-linha"></div>⬇<span>mensagens</span></div>
+  </div>
+
+  <!-- Z-API POR CLIENTE -->
+  <div class="camada">
+    <div class="camada-label">📡 Camada 2 — Z-API (1 instância por clínica)</div>
+    <div class="clientes-row">
+      <div class="cliente-box" style="border-color:#f59e0b"><div class="emoji">💬</div><div class="nome">Z-API #1</div><div class="tipo">Psicóloga Ana</div></div>
+      <div class="cliente-box" style="border-color:#f59e0b"><div class="emoji">💬</div><div class="nome">Z-API #2</div><div class="tipo">Dentista João</div></div>
+      <div class="cliente-box" style="border-color:#f59e0b"><div class="emoji">💬</div><div class="nome">Z-API #3</div><div class="tipo">Psicólogo Pedro</div></div>
+      <div class="cliente-box" style="border-color:#f59e0b"><div class="emoji">💬</div><div class="nome">Z-API #N</div><div class="tipo">Nova clínica</div></div>
+    </div>
+  </div>
+
+  <div class="setas">
+    <div class="seta"><div class="seta-linha"></div>⬇<span>webhook</span></div>
+  </div>
+
+  <!-- SERVIDOR CENTRAL -->
+  <div class="servidor">
+    <h3>🖥️ SEU SERVIDOR CENTRAL — Railway (1 instância única)</h3>
+    <div class="servidor-grid">
+      <div class="modulo"><div class="m-icon">🤖</div><div class="m-nome">IA (Claude)</div><div class="m-desc">Ana recepcionista</div></div>
+      <div class="modulo"><div class="m-icon">🎤</div><div class="m-nome">Whisper</div><div class="m-desc">Transcrição áudio</div></div>
+      <div class="modulo"><div class="m-icon">📅</div><div class="m-nome">Agendamento</div><div class="m-desc">Google Calendar</div></div>
+      <div class="modulo"><div class="m-icon">⏰</div><div class="m-nome">Lembretes</div><div class="m-desc">Auto WhatsApp/Email</div></div>
+      <div class="modulo"><div class="m-icon">📊</div><div class="m-nome">Dashboard</div><div class="m-desc">Gestão clínica</div></div>
+      <div class="modulo"><div class="m-icon">🔑</div><div class="m-nome">Multi-tenant</div><div class="m-desc">Isolamento por clínica</div></div>
+      <div class="modulo"><div class="m-icon">📋</div><div class="m-nome">Config Sheet</div><div class="m-desc">Google Sheets</div></div>
+      <div class="modulo"><div class="m-icon">🎂</div><div class="m-nome">Aniversários</div><div class="m-desc">Mensagem auto</div></div>
+    </div>
+  </div>
+
+  <div class="setas">
+    <div class="seta"><div class="seta-linha"></div>⬇<span>dados isolados</span></div>
+  </div>
+
+  <!-- BANCO DE DADOS -->
+  <div class="camada">
+    <div class="camada-label">🗄️ Camada 4 — Bancos de Dados (isolados por clínica — LGPD)</div>
+    <div class="bancos">
+      <div class="banco"><div class="b-icon">🗄️</div><div class="b-nome">DB Clínica 1</div><div class="b-desc">Pacientes psicóloga</div></div>
+      <div class="banco"><div class="b-icon">🗄️</div><div class="b-nome">DB Clínica 2</div><div class="b-desc">Pacientes dentista</div></div>
+      <div class="banco"><div class="b-icon">🗄️</div><div class="b-nome">DB Clínica 3</div><div class="b-desc">Pacientes psicólogo</div></div>
+      <div class="banco"><div class="b-icon">🗄️</div><div class="b-nome">DB Clínica N</div><div class="b-desc">Novos clientes</div></div>
+    </div>
+  </div>
+
+  <div class="setas">
+    <div class="seta"><div class="seta-linha"></div>⬇<span>integração</span></div>
+  </div>
+
+  <!-- APIS EXTERNAS POR CLIENTE -->
+  <div class="camada">
+    <div class="camada-label">☁️ Camada 5 — Serviços externos (1 por clínica)</div>
+    <div class="apis">
+      <div class="api-box"><div class="a-icon">📅</div><div class="a-nome">Google Calendar</div><div class="a-desc">1 agenda por clínica</div></div>
+      <div class="api-box"><div class="a-icon">📊</div><div class="a-nome">Google Sheets</div><div class="a-desc">Config por clínica</div></div>
+      <div class="api-box"><div class="a-icon">📧</div><div class="a-nome">Gmail</div><div class="a-desc">Email por clínica</div></div>
+      <div class="api-box" style="border-color:#4f46e5"><div class="a-icon">🧠</div><div class="a-nome">Claude API</div><div class="a-desc">Compartilhado (seu)</div></div>
+      <div class="api-box" style="border-color:#4f46e5"><div class="a-icon">🎤</div><div class="a-nome">OpenAI</div><div class="a-desc">Compartilhado (seu)</div></div>
+    </div>
+  </div>
+
+  <!-- VOCÊ -->
+  <div style="text-align:center;margin-top:24px">
+    <div style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:16px;padding:20px 40px;box-shadow:0 0 30px rgba(79,70,229,0.4)">
+      <div style="font-size:32px;margin-bottom:8px">👨‍💼</div>
+      <div style="font-weight:700;font-size:16px">VOCÊ — Administrador</div>
+      <div style="font-size:12px;color:#c7d2fe;margin-top:4px">Controla tudo via painel de admin<br>Gerencia todos os clientes centralmente</div>
+    </div>
+  </div>
+
+  <div class="legenda">
+    <div class="legenda-item"><div class="legenda-cor" style="background:#4f46e5"></div> Compartilhado (seu custo)</div>
+    <div class="legenda-item"><div class="legenda-cor" style="background:#10b981"></div> Isolado por clínica (LGPD)</div>
+    <div class="legenda-item"><div class="legenda-cor" style="background:#f59e0b"></div> 1 por clínica (custo do cliente)</div>
+    <div class="legenda-item"><div class="legenda-cor" style="background:#334155"></div> Gerenciado por você</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ ESTRUTURA ATUAL ═══════════════════ -->
+<div class="diagrama" id="atual">
+  <div style="text-align:center;margin-bottom:24px">
+    <div style="display:inline-block;background:#7f1d1d;border:1px solid #ef4444;border-radius:12px;padding:12px 24px;font-size:13px">
+      ⚠️ Estrutura atual: funciona para 1 cliente, mas não escala bem para vários
+    </div>
+  </div>
+
+  <div class="camada">
+    <div class="camada-label">👥 Pacientes</div>
+    <div class="clientes-row">
+      <div class="cliente-box"><div class="emoji">📱</div><div class="nome">Paciente A</div></div>
+      <div class="cliente-box"><div class="emoji">📱</div><div class="nome">Paciente B</div></div>
+      <div class="cliente-box"><div class="emoji">📱</div><div class="nome">Paciente C</div></div>
+    </div>
+  </div>
+  <div class="setas"><div class="seta"><div class="seta-linha"></div>⬇</div></div>
+
+  <div class="clientes-row" style="margin-bottom:8px">
+    <div style="background:#1e293b;border:2px solid #ef4444;border-radius:16px;padding:20px;text-align:center;min-width:200px">
+      <div style="font-size:28px;margin-bottom:8px">💬</div>
+      <div style="font-weight:700">Z-API (1 instância)</div>
+      <div style="font-size:11px;color:#64748b">1 número fixo</div>
+    </div>
+  </div>
+  <div class="setas"><div class="seta"><div class="seta-linha"></div>⬇</div></div>
+
+  <div class="clientes-row" style="margin-bottom:8px">
+    <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border:2px solid #4f46e5;border-radius:16px;padding:20px;text-align:center;min-width:300px">
+      <div style="font-size:28px;margin-bottom:8px">🖥️</div>
+      <div style="font-weight:700">Railway (1 instância)</div>
+      <div style="font-size:11px;color:#a5b4fc;margin-top:4px">Atende 1 clínica apenas</div>
+    </div>
+  </div>
+  <div class="setas"><div class="seta"><div class="seta-linha"></div>⬇</div></div>
+
+  <div class="clientes-row">
+    <div class="banco"><div class="b-icon">🗄️</div><div class="b-nome">1 Banco de Dados</div><div class="b-desc">Todos os pacientes juntos</div></div>
+    <div class="api-box"><div class="a-icon">📅</div><div class="a-nome">1 Google Calendar</div></div>
+    <div class="api-box"><div class="a-icon">📧</div><div class="a-nome">1 Gmail</div></div>
+  </div>
+
+  <div style="text-align:center;margin-top:32px">
+    <div style="display:inline-block;background:#1e293b;border-radius:16px;padding:20px 32px">
+      <div style="font-size:14px;font-weight:700;color:#ef4444;margin-bottom:12px">❌ Problemas desta estrutura com múltiplos clientes:</div>
+      <div style="font-size:13px;color:#94a3b8;text-align:left;line-height:1.8">
+        • Pacientes de clínicas diferentes misturados no mesmo banco (viola LGPD)<br>
+        • Se o servidor cai, TODOS os clientes ficam offline<br>
+        • Difícil separar faturamento e dados por clínica<br>
+        • Cada novo cliente exige um servidor Railway novo
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ COMPARATIVO ═══════════════════ -->
+<div class="diagrama" id="comparativo">
+  <div class="comp-grid">
+    <div class="comp-card" style="border:1px solid #334155">
+      <h3 style="color:#ef4444">📦 Instâncias Separadas <span style="font-size:11px;background:#7f1d1d;padding:3px 8px;border-radius:20px;margin-left:8px">Atual</span></h3>
+      <div class="comp-item"><div class="ci">✅</div><div class="ct">Falha de um cliente <strong>não afeta outros</strong></div></div>
+      <div class="comp-item"><div class="ci">✅</div><div class="ct">Isolamento total já garantido</div></div>
+      <div class="comp-item"><div class="ci">❌</div><div class="ct">1 Railway por cliente = <strong>custo cresce rápido</strong></div></div>
+      <div class="comp-item"><div class="ci">❌</div><div class="ct">Deploy separado para cada cliente</div></div>
+      <div class="comp-item"><div class="ci">❌</div><div class="ct">Atualização precisa ser feita em cada instância</div></div>
+      <div class="comp-item"><div class="ci">❌</div><div class="ct">Difícil de escalar acima de 10 clientes</div></div>
+      <div class="comp-custo">
+        <div class="comp-custo-title">💰 Custo com 10 clientes</div>
+        <div class="comp-custo-row"><span>Railway (10x)</span><span>R$ 250/mês</span></div>
+        <div class="comp-custo-row"><span>Z-API (10x)</span><span>R$ 550/mês</span></div>
+        <div class="comp-custo-row"><span>APIs compartilhadas</span><span>R$ 180/mês</span></div>
+        <div class="comp-custo-total"><span>Total</span><span style="color:#ef4444">R$ 980/mês</span></div>
+      </div>
+    </div>
+
+    <div class="comp-card" style="border:1px solid #4f46e5;box-shadow:0 0 20px rgba(79,70,229,0.2)">
+      <h3 style="color:#a5b4fc">🏢 Multi-Tenant <span style="font-size:11px;background:#312e81;padding:3px 8px;border-radius:20px;margin-left:8px">Recomendado</span></h3>
+      <div class="comp-item"><div class="ci">✅</div><div class="ct"><strong>1 Railway</strong> para todos os clientes</div></div>
+      <div class="comp-item"><div class="ci">✅</div><div class="ct">1 atualização = todos os clientes atualizados</div></div>
+      <div class="comp-item"><div class="ci">✅</div><div class="ct">Banco isolado por clínica = <strong>LGPD garantida</strong></div></div>
+      <div class="comp-item"><div class="ci">✅</div><div class="ct">Escala para 50, 100 clientes facilmente</div></div>
+      <div class="comp-item"><div class="ci">✅</div><div class="ct">Painel admin central para gerenciar tudo</div></div>
+      <div class="comp-item"><div class="ci">⚠️</div><div class="ct">Exige refatoração do código atual (~2 dias)</div></div>
+      <div class="comp-custo">
+        <div class="comp-custo-title">💰 Custo com 10 clientes</div>
+        <div class="comp-custo-row"><span>Railway (1x Team)</span><span>R$ 100/mês</span></div>
+        <div class="comp-custo-row"><span>Z-API (10x)</span><span>R$ 550/mês</span></div>
+        <div class="comp-custo-row"><span>APIs compartilhadas</span><span>R$ 180/mês</span></div>
+        <div class="comp-custo-total"><span>Total</span><span style="color:#10b981">R$ 830/mês</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-top:32px;padding:24px;background:#1e293b;border-radius:16px;max-width:900px;margin-left:auto;margin-right:auto">
+    <div style="font-size:14px;font-weight:700;color:#a5b4fc;margin-bottom:16px">📈 Projeção de lucro — Multi-Tenant vs Instâncias Separadas</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;text-align:center">
+      <div><div style="font-size:11px;color:#64748b;margin-bottom:8px">5 CLIENTES</div>
+        <div style="font-size:13px;color:#94a3b8">Separado: <span style="color:#10b981">R$ 1.920</span></div>
+        <div style="font-size:13px;color:#94a3b8">Multi: <span style="color:#10b981;font-weight:700">R$ 2.050</span></div></div>
+      <div><div style="font-size:11px;color:#64748b;margin-bottom:8px">10 CLIENTES</div>
+        <div style="font-size:13px;color:#94a3b8">Separado: <span style="color:#10b981">R$ 3.990</span></div>
+        <div style="font-size:13px;color:#94a3b8">Multi: <span style="color:#10b981;font-weight:700">R$ 4.140</span></div></div>
+      <div><div style="font-size:11px;color:#64748b;margin-bottom:8px">20 CLIENTES</div>
+        <div style="font-size:13px;color:#94a3b8">Separado: <span style="color:#ef4444">R$ 5.280</span></div>
+        <div style="font-size:13px;color:#94a3b8">Multi: <span style="color:#10b981;font-weight:700">R$ 7.080</span></div></div>
+      <div><div style="font-size:11px;color:#64748b;margin-bottom:8px">50 CLIENTES</div>
+        <div style="font-size:13px;color:#94a3b8">Separado: <span style="color:#ef4444">Inviável</span></div>
+        <div style="font-size:13px;color:#94a3b8">Multi: <span style="color:#10b981;font-weight:700">R$ 19.950</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ FLUXO ═══════════════════ -->
+<div class="diagrama" id="fluxo">
+  <div class="fluxo">
+    <div style="text-align:center;margin-bottom:24px;font-size:14px;color:#64748b">Ciclo completo de uma mensagem no sistema multi-tenant</div>
+
+    <div class="fluxo-step">
+      <div class="fluxo-num">1</div>
+      <div class="fluxo-content">
+        <div class="fc-title">📱 Paciente envia mensagem (texto ou áudio)</div>
+        <div class="fc-desc">Via WhatsApp, para o número da clínica dele</div>
+      </div>
+    </div>
+    <div class="fluxo-arrow">↓</div>
+
+    <div class="fluxo-step">
+      <div class="fluxo-num">2</div>
+      <div class="fluxo-content">
+        <div class="fc-title">💬 Z-API recebe e encaminha via Webhook</div>
+        <div class="fc-desc">Envia para: https://seuservidor.railway.app/webhook/<b>clinica-id</b></div>
+      </div>
+    </div>
+    <div class="fluxo-arrow">↓</div>
+
+    <div class="fluxo-step">
+      <div class="fluxo-num">3</div>
+      <div class="fluxo-content">
+        <div class="fc-title">🖥️ Servidor identifica a clínica pelo ID</div>
+        <div class="fc-desc">Carrega as configurações e o banco de dados correto dessa clínica</div>
+      </div>
+    </div>
+    <div class="fluxo-arrow">↓</div>
+
+    <div class="fluxo-step">
+      <div class="fluxo-num">4</div>
+      <div class="fluxo-content">
+        <div class="fc-title">🎤 Se for áudio → Whisper transcreve</div>
+        <div class="fc-desc">OpenAI converte o áudio em texto antes de processar</div>
+      </div>
+    </div>
+    <div class="fluxo-arrow">↓</div>
+
+    <div class="fluxo-step">
+      <div class="fluxo-num">5</div>
+      <div class="fluxo-content">
+        <div class="fc-title">🤖 Claude (Ana) processa e responde</div>
+        <div class="fc-desc">Com o contexto da clínica correta: nome, convênios, horários, histórico do paciente</div>
+      </div>
+    </div>
+    <div class="fluxo-arrow">↓</div>
+
+    <div class="fluxo-step">
+      <div class="fluxo-num">6</div>
+      <div class="fluxo-content">
+        <div class="fc-title">📅 Se agendar → Google Calendar da clínica</div>
+        <div class="fc-desc">Cria o evento na agenda do profissional correto</div>
+      </div>
+    </div>
+    <div class="fluxo-arrow">↓</div>
+
+    <div class="fluxo-step">
+      <div class="fluxo-num">7</div>
+      <div class="fluxo-content">
+        <div class="fc-title">🗄️ Dados salvos no banco isolado da clínica</div>
+        <div class="fc-desc">Cada clínica tem seu próprio banco — pacientes nunca se misturam (LGPD ✅)</div>
+      </div>
+    </div>
+    <div class="fluxo-arrow">↓</div>
+
+    <div class="fluxo-step">
+      <div class="fluxo-num">8</div>
+      <div class="fluxo-content">
+        <div class="fc-title">📱 Resposta enviada via Z-API da clínica</div>
+        <div class="fc-desc">Paciente recebe pelo número correto da clínica dele</div>
+      </div>
+    </div>
+    <div class="fluxo-arrow">↓</div>
+
+    <div class="fluxo-step">
+      <div class="fluxo-num" style="background:#10b981">✓</div>
+      <div class="fluxo-content" style="border:1px solid #10b981">
+        <div class="fc-title" style="color:#10b981">⏰ Lembretes automáticos (dia anterior + 2h antes)</div>
+        <div class="fc-desc">WhatsApp + E-mail — tudo automático, sem intervenção manual</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(id) {
+  document.querySelectorAll('.diagrama').forEach(d => d.classList.remove('active'))
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+  document.getElementById(id).classList.add('active')
+  event.target.classList.add('active')
+}
+</script>
+</body>
+</html>
