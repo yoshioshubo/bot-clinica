@@ -908,6 +908,15 @@ app.get('/health', function(req, res) {
   res.json({ status: 'ok', uptime: process.uptime() })
 })
 
+app.get('/reset-db', function(req, res) {
+  if (req.query.senha !== 'reset2024') {
+    return res.status(403).json({ erro: 'Acesso negado' })
+  }
+  db.exec('DELETE FROM pacientes')
+  db.exec('DELETE FROM historico')
+  res.json({ ok: true, mensagem: 'Banco zerado com sucesso.' })
+})
+
 const PORTA = process.env.PORT || 8080
 app.listen(PORTA, async function() {
   console.log('Rodando na porta ' + PORTA)
