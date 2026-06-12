@@ -7,9 +7,8 @@ app.use(express.json())
 
 // ─── Configurações ─────────────────────────────────────────────────────────────
 
-const INSTANCE_ID    = process.env.INSTANCE_ID    || '3F424535214202979B1E7A94F00847F6'
-const INSTANCE_TOKEN = process.env.INSTANCE_TOKEN || 'EA8E2F27C3F469BA1874CEED'
-const CLIENT_TOKEN   = process.env.CLIENT_TOKEN   || 'F778ca59b075541ad8cfd7e6cb843fc52S'
+const INSTANCE_ID    = process.env.INSTANCE_ID    || '3F488ACA6F2661752B8946CEFC1EB4D5'
+const INSTANCE_TOKEN = process.env.INSTANCE_TOKEN || '6290BF5DA5E5E94014384AFF'
 const CLAUDE_KEY     = process.env.CLAUDE_KEY
 const OPENAI_KEY     = process.env.OPENAI_KEY
 const CALENDAR_ID    = process.env.CALENDAR_ID    || 'ygshubo@gmail.com'
@@ -442,7 +441,7 @@ async function enviar(telefone, mensagem) {
   const url = `https://api.z-api.io/instances/${INSTANCE_ID}/token/${INSTANCE_TOKEN}/send-text`
   const resp = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Client-Token': CLIENT_TOKEN },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ phone: telefone, message: mensagem })
   })
   if (!resp.ok) console.error('Erro Z-API:', resp.status, await resp.text())
